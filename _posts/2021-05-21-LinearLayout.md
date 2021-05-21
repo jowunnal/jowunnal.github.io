@@ -7,7 +7,9 @@ tags:
 ---
 
 ---
+
 참고서적: Doit 안드로이드 앱 프로그래밍
+
 ---
 
 Linearlayout 에 대해 알기전에, 먼저 layout의 종류들에 대해서 알아보자.
@@ -62,7 +64,7 @@ content에 대한 정렬의 속성은 gravity 이다.
 content의 구성은 text 이거나 그림 일수있는데, content의 위치배치를 그림으로 보면 다음과같다.
 
 
-[linearLayout7](/assets/LinearLayout7.JPG)
+![linearLayout7](/assets/LinearLayout7.JPG)
 
 이그림은 vertical 속성의 LinearLayout 안에 button 3개를 만들었다.
 button 1과2는 left, center로 하고 width는 match_parent로 했다.
