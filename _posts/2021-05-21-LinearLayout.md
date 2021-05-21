@@ -29,11 +29,11 @@ vertical 일경우 세로로 view들을 가지며, horizontal 일경우 가로�
 
 이것을 응용해서 격자형태를 만들수있는데, vertical 의 Linear Layout 안에 horizontal 속성의 Linear Layout을 넣게되면 다음 그림과 같은 격자형태를 만들수있다.
 
-[linearLayout1](/assets/LinearLayout1.JPG)
+![linearLayout1](/assets/LinearLayout1.JPG)
 
 그걸 한층더 응용하면, 위의 상태에서 다시 vertical 속성을가지는 LinearLayout을 넣으면 다음 그림과 같은 형태를 가질수있다.
 
-[linearLayout2](/assets/LinearLayout2.JPG)
+![linearLayout2](/assets/LinearLayout2.JPG)
 
 이런식으로 orientation 의 속성을 어떻게 구성하는가, 그리고 LinearLayout의 중첩들에대한 orientation 의 각각의 속성들을 어떻게 구성하는가 에 따라 매우 unique 하고 복잡한 형태를 표현할수 있다.
 
@@ -42,7 +42,7 @@ Linear Layout의 다른속성중에는 (이책에서 다룬 속성) gravity(정�
 첫번째 gravity 속성은 정렬을 해주는 속성인데, 이것도 view에대한 정렬 과 view의 content에 대한 정렬 두가지로 나뉘게된다.
 view 들을 구성할때 LinearLayout 에서 vertical 로 구성하게되면, 각 view들의 width를 wrap_content로 했을때, 남는 공간들이 발생하게 된다.
 
-[linearLayout3](/assets/LinearLayout3.JPG)
+![linearLayout3](/assets/LinearLayout3.JPG)
 
 이때, 더불어서 설명해야하는 공간개념이있다.
 view의 위치를 결정시키는데 있어서 view가 갖는 공간은 cell에 포함되며,
@@ -50,13 +50,13 @@ content의 위치를 결정시키는데 있어서 content가 갖는공간은 vie
 view의 위치는margin 속성들에 의해 결정되고, content의 위치는 padding 속성들에 의해 결정된다. margin과 padding은 각각 top,bottom,right,left 가 존재하며 그냥이름만(margin or padding) 쓰는경우에는 4가지 모두를 한번에 제어한다.
 이것을 그림으로 표현하면 다음과같다.
 
-[linearLayout4](/assets/LinearLayout4.JPG)
+![linearLayout4](/assets/LinearLayout4.JPG)
 
 이 남는 공간들이 생기면 , 일반적으로 view들을 정렬(gravity)를 하게된다.
 이때 사용하는 속성은 layout_gravity 이고, 이것을 사용하여 left,center,right 와같이 
 좌,중간,우 등등으로 정렬시킬수있다.(단, 남는공간들은 남아있게된다. 아마도 보기좋게하는듯 하다)
 
-[linearLayout6](/assets/LinearLayout6.JPG)
+![linearLayout6](/assets/LinearLayout6.JPG)
 
 content에 대한 정렬의 속성은 gravity 이다. 
 content의 구성은 text 이거나 그림 일수있는데, content의 위치배치를 그림으로 보면 다음과같다.
@@ -74,19 +74,19 @@ button 3은 width와 height 모두 match_parent로 구성해서 나머지공간�
 
 이를 위한 개념이 margin 과 padding  개념이다.
 
-[linearLayout5](/assets/LinearLayout5.JPG)
+![linearLayout5](/assets/LinearLayout5.JPG)
 
 view의 테두리 (border)는 아주미세하게 view와 view 사이를 띄워놓고있다.
 view의 바깥은 margin 속성을 통해 띄워놓으며, view내부의 content는 padding 속성을통해
 테두리와 content 사이를 띄워놓고있다.
 
-[linearLayout8](/assets/LinearLayout8.JPG)
+![linearLayout8](/assets/LinearLayout8.JPG)
 
 위의그림을보면 살짝씩 띄워져있는 모습을 볼수있다.
 
 이를통해 정렬하는 예제를 수행해보았다.
 
-[linearLayout9](/assets/LinearLayout9.JPG)
+![linearLayout9](/assets/LinearLayout9.JPG)
 
 부모컨테이너인 LinearLayout 내부에 3개의 textview(1,2,3) 을 만들었다.
 각 textview에 text값은 textview 로 했고, 그위치들을 자세히 보고 알기위해서 
@@ -98,7 +98,7 @@ textview (2)는 layout_margin 속성을통해 textview(1,3)으로부터 떨어�
 vertical 방향을 가지는 LinearLayout(1)안에 horizontal 방향을 가지는 LinearLayout(2)을 두었다고 가정해보자.
 이때, (2) layout에 두개의 textview를 두었을때(width 는 wrap_content), 남는공간들이 역시 발생하게된다. 이때 weight 속성을 통해 남는공간들을 두개의 textview 에 비율을 할당해서 재배치할수있다.
 
-[linearLayout10](/assets/LinearLayout10.JPG)
+![linearLayout10](/assets/LinearLayout10.JPG)
 
 첫번째 vertical 의 LinearLayout 은 1:3 비율로 재배치했다.
 각각의 weight 속성에 1과 3을 주면된다.
