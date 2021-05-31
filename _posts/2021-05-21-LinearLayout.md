@@ -14,7 +14,7 @@ tags:
 
 Linearlayout 에 대해 알기전에, 먼저 layout의 종류들에 대해서 알아보자.
 
-Layout에는 크게 5개의 종류가있다.
+Layout에는 대표적으로 5개의 종류가있다.
 
 1. ConstraintLayout (제약조건기반 layout)
 2. LinearLayout (박스기반 layout)
@@ -110,4 +110,4 @@ textview의 width를 0으로 주게되면 , 부모 컨테이너인 vertical 의 
 
 그에비해 두번째 textview는 두개의 textview를 각각 wrap_content로 배치시킨뒤에 남은공간을 각각 1:2 비율로 더주어 배치시켯기 때문에 다르다.
 
-위의 모든예제들에 대한 코드는 [깃허브주소](https://github.com/jowunnal/studyAndroid,"go github") 에있다.
+위의 모든예제들에 대한 코드는 [깃허브주소](https://github.com/jowunnal/studyAndroid,"github link") 에있다.
