@@ -10,11 +10,11 @@ tags:
 ---
 DO it! 안드로이드 앱 프로그래밍 책
 
-[Developer](https://developer.android.com/guide/platform?hl=ko,"developer link")
+[Developer](https://developer.android.com/guide/platform?hl=ko "developer link")
 
-[위키피디아-안드로이드란?](https://ko.wikipedia.org/wiki/%EC%95%88%EB%93%9C%EB%A1%9C%EC%9D%B4%EB%93%9C_(%EC%9A%B4%EC%98%81_%EC%B2%B4%EC%A0%9C) ,"wekipidia link")
+[위키피디아-안드로이드란?](https://ko.wikipedia.org/wiki/%EC%95%88%EB%93%9C%EB%A1%9C%EC%9D%B4%EB%93%9C_(%EC%9A%B4%EC%98%81_%EC%B2%B4%EC%A0%9C) "wekipidia link")
 
-[나무위키-안드로이드란?](https://namu.wiki/w/%EC%95%88%EB%93%9C%EB%A1%9C%EC%9D%B4%EB%93%9C(%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9C) ,"namuwiki link")
+[나무위키-안드로이드란?](https://namu.wiki/w/%EC%95%88%EB%93%9C%EB%A1%9C%EC%9D%B4%EB%93%9C(%EC%9A%B4%EC%98%81%EC%B2%B4%EC%A0%9C) "namuwiki link")
 
 ---
 

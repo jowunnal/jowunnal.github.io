@@ -110,4 +110,4 @@ res/drawable 폴더에 접근하기 위해서는 getDrawable() 메소드를 이�
 
 그후 Bitmap.getIntrinsic width와 height 값을 가져와 할당시켜주면 끝이다.
 
-모든 내용은  [깃허브주소](https://github.com/jowunnal/studyAndroid, "github link") 에 있다.
+모든 내용은  [깃허브주소](https://github.com/jowunnal/studyAndroid "github link") 에 있다.
