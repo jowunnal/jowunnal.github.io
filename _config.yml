@@ -21,7 +21,7 @@ title_separator          : "-"
 subtitle                 : "반갑습니다."# site tagline that appears below site title in masthead
 name                     : "황진호"
 description              : "진호의 학습블로그"
-url                      : "https://github.com/jowunnal/jowunnal.github.io.git" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
+url                      : "https://github.com/jowunnal/jowunnal-comments.git" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : ""# the subpath of your site, e.g. "/blog"
 repository               : "jowunnal/jowunnal-comments" # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
 teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
