@@ -201,4 +201,4 @@ Task는 시스템에 의해 자동적으로 관리되지만, 직접제어해야�
 manifest의 activity 태그에 launchMode 속성을 추가하여 그값에따라 화면을 스택에넣어 관리시키게 할수있다.
 
 
-모든 예제들의 코드는 [깃허브주소][깃허브주소](https://github.com/jowunnal/studyAndroid "github link") 에있다.
+모든 예제들의 코드는 [깃허브주소](https://github.com/jowunnal/studyAndroid "github link") 에있다.
