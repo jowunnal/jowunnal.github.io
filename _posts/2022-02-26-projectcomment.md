@@ -1,5 +1,5 @@
 ---
-title: "개발 일일 comment"
+title: 개발일일 comment
 categories:
 - projects
 tags:
