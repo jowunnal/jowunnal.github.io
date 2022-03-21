@@ -339,3 +339,9 @@ windowManager의 LayoutParams 메소드로 길이와높이를 정의하고, TYPE
 					이후 위와동일
 					
 - package 단위에 service,receiver,viewmodel 을 추가하여 기존에 item 패키지명에 있던 녀석들을 분가해서 더깔끔하게 정리했다.
+
+### 1.5.4
+
+- 화면위에그리기 Overlay 활성화 중에 업데이트 발생시 ANR 발생
+
+---> onCreateView() 에서 overlay 권한 띄우기
