@@ -47,7 +47,7 @@ CoroutineContext는 4가지로 구성되어있고 다음과같다.
 1. Job : Coroutine의 핸들로써 가장중요한 녀석으로, 생명주기를 제어하기위해 사용하는 객체이다. 
 2. CoroutineDispatcher : 어떤스레드상에서 동작할것인지를 결정하는 인자다. Dispatcher에는 Main(UI),Default(대용량데이터처리),IO(네트워크통신) 가있다.
 3. CoroutineName : 코루틴의 이름으로 default값은 'coroutine'
-4. CoroutineExceptionHandler : 예외를처리하기위한 핸들러
+4. CoroutineExceptionHandler : 예외를처리하기위한 핸들러 ( 코루틴은 내부로직이 취소되면 반드시 예외를 발생시키기 때문에 그에대한 처리가 필요하다.)
 
 각각의 CoroutineContext를 처리하여 개발자가 원하는 흐름대로 코루틴이 수행될수 있도록 구성해야만 한다.
 
@@ -57,7 +57,7 @@ CoroutineContext는 4가지로 구성되어있고 다음과같다.
 
 1. launch : launch블록은 반환값이 없을때 와 일반함수 내부에서 코루틴블럭을 수행해야할때 적절하다.  그저 선언되고 수행되면 코드에따라 순차적으로 실행된다.
 2. async : async블록은 반환값이 잇을때 혹은 launch블록 내부에서 반환값이 필요할때 사용함에 적절하다.  작업도중에 취소가 되어도 await() 을통해 작업완료를 보장할수있다.
-3. withContext : withContext는 블록내부의 코드가 모두수행되고 나서야 이후의 코드가 동작할수 있도록 해주는데(suspend=정지시킴), 이를통해 반환값을 전달받아 전달받은 반환값으로 이후코드가 진행되야 할때 사용함에 적절하다.
+3. withContext : withContext는 내부의 블록코드 수행중에 CoroutineContext의 변경(Dispatcher의변경) 이 일어나야할때 반드시 사용하여야 하며, 내부로직이 완전히 수행되면 블록을 빠져나오는 특성이 있기때문에 async의 await()처럼 변수에 할당하여 사용할수 있다.
 
 이외에도 정지함수인 delay()가 존재하는데, 코루틴수행도중 적절한 delay(정지) 가 필요할수도 있다.
 
