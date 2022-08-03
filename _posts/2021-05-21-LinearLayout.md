@@ -1,7 +1,7 @@
 ---
-title: LinearLayout
+title: "[Doit! 안드로이드 앱 프로그래밍] LinearLayout"
 categories:
-- Android
+- Doit
 tags:
 - Study
 ---

@@ -1,7 +1,7 @@
 ---
 title: "[Android] 코루틴"
 categories:
-- Android
+- Coroutines
 tags:
 - Study
 ---

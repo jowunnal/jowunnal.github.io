@@ -1,7 +1,7 @@
 ---
-title: "[Android] Service와 Broadcast Receiver"
+title: "[Doit! 안드로이드 앱 프로그래밍]  Service와 Broadcast Receiver"
 categories:
-- Android
+- Doit
 tags:
 - Study
 ---

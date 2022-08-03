@@ -1,7 +1,7 @@
 ---
 layout: category
-permalink: "/categories/projects"
+permalink: "/categories/Projects"
 author_profile: true
-taxonomy: projects
+taxonomy: Projects
 ---
 

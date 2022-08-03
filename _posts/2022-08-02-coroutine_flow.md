@@ -1,7 +1,7 @@
 ---
 title: "[Android] Flow"
 categories:
-- Android
+- Coroutines
 tags:
 - Study
 ---

@@ -1,7 +1,7 @@
 ---
-title: "[Study] 소프트웨어 공학의 소개"
+title: "[Projects] 소프트웨어 공학의 소개"
 categories:
-- projects
+- Projects
 tags:
 - Study
 ---

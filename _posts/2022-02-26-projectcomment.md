@@ -1,7 +1,7 @@
 ---
-title: 토이프로젝트[잡학사전with알람] 개발 comment
+title: "[Projects] 토이프로젝트[잡학사전with알람] 개발 comment"
 categories:
-- projects
+- Projects
 tags:
 - Study
 ---
