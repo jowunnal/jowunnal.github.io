@@ -57,7 +57,7 @@ fun main(): Unit = runBlocking{
         println("Coroutine is started")
     }
 		
-		delay(2000)
+    delay(2000)
     job.start()
 }
 ```
@@ -146,7 +146,7 @@ fun main(): Unit = runBlocking{
     job.start()
     delay(1000)
     job.cancel()
-		delay(2000) // 부모코루틴이 종료되면서 내부코루틴이 종료된건지 cancel에의해 종료된건지 확인하기위한 delay
+    delay(2000) // 부모코루틴이 종료되면서 내부코루틴이 종료된건지 cancel에의해 종료된건지 확인하기위한 delay
 }
 ```
 
