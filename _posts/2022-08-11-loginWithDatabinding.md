@@ -291,19 +291,26 @@ else구문을 보면 같은 코루틴(스레드)상에서 결과값을 전달받
 
 위의 if문과 elseif문의경우 회원가입화면에서 입력된 문자들의 형식이 올바른지에 대한 제어문이다. 작성하지않은 항목이 잇거나 올바르지않은 항목이 있는경우 회원가입을 할수없도록 제어했다.
 
-![잘못된형식일때](/assets/tp_RetrofitWithMap_wrongSentence)
+![잘못된형식일때](/assets/tp_RetrofitWithMap_wrongSentence.PNG)
 
 주어진 조건들에 부합하지 못하는 형식이 입력됬을때 helperText로 문구를 보여주고, 회원가입을 할수없다.
 
-![올바른형식일때](/assets/tp_RetrofitWithMap_correctSentence)
+![올바른형식일때](/assets/tp_RetrofitWithMap_correctSentence.PNG)
 
 올바르게 입력했다면 회원가입이 가능하다.
 
-![로그인화면](/assets/tp_RetrofitWithMap_login)
+![로그인화면](/assets/tp_RetrofitWithMap_login.PNG)
 
 로그인화면이다.
 
 [깃허브주소](https://github.com/jowunnal/TP_RetrofitWithMap "github link") 에 모든 코드들을 확인할수 있다.
+
+# 끝으로
+---
+이제 로그인과 회원가입이 완료됬으니 들어온 회원정보를 처리하는 화면과 기능을 추가적으로 구현할 예정이다.
+
+공부한 데이터바인딩은 추가적인 프로젝트과정에서 더심화된 데이터결합을 사용해봐야겠다.
+
 # References
 ---
 (데이터바인딩)
