@@ -13,7 +13,7 @@ tags:
 Retrofit2는 서드파티 라이브러리로 직접 dependencies에 추가하여야 한다.
 
 ```kotlin
-		implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation "com.squareup.okhttp3:logging-interceptor:4.9.3"
 
     implementation 'com.tickaroo.tikxml:annotation:0.8.13'
