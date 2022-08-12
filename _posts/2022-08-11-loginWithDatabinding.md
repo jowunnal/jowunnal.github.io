@@ -121,7 +121,22 @@ apiViewModel.restaurantList.observe(viewLifecycleOwner, Observer {
 
 text의 값에 user객체의 user.Name이 양방향결합으로 선언되어 user.Name값이 text에할당됨과 동시에 text값이 변경되면 user객체의 user.Name값이 변경된다.
 
-또한, 여기서 생성된 user객체는 View 단에서 User()객체를 생성하여 할당해 주어야함을 잊지말자.  
+(<2022.08.12내용수정)
+양방향결합이 완성되기 위해서는 결합될 객체가 Observable함이 보장되어야만 한다. 방법은 3가지가 있다.
+# Observable?
+---
+1. ObservableField 객체로 선언한다.
+
+위의 user객체의 클래스의 필드의 타입이 ObservableField<>로 선언되면 된다.
+
+2. 결합객체가 선언되는(사용되는) 클래스를 BaseObservable()를 상속받도록하고, 결합객체의 getter와 setter위에 @Bindable 어노테이션을 정의한다.
+
+이는 kotlin의 data class로는 사용할수없는것같다. getter 와 setter를 정의하고 그위에 @Bindable 어노테이션을 직접 정의해야 하기때문. 
+또한, getter를 @Bindable로 정의해두면 그에 상응하는 setter는 자동적으로 Bindable함을 보장해주니 getter만 해둬도 된다.
+
+3. 2번의 방식에서 필드변수위에 @get:Bindable 어노테이션과함께 선언하고, notifyPropertyChanged()를 선언한다.
+
+자세한 설명은 [공식가이드](https://developer.android.com/topic/libraries/data-binding/observability "구글공식가이드") 의 설명을 참조하기 바람.(2022.08.12내용수정>)
 
 onTextChanged 리스너에 register객체의 checkNameIsCorrect변수가 결합되어 있는데, 
 
@@ -311,6 +326,340 @@ else구문을 보면 같은 코루틴(스레드)상에서 결과값을 전달받
 
 공부한 데이터바인딩은 추가적인 프로젝트과정에서 더심화된 데이터결합을 사용해봐야겠다.
 
+# 2022.08.12 내용추가
+---
+데이터바인딩의 개념을 잘못이해하고 있었다.. 애초에 MVVM구조 자체를 이해를 잘못하고 있었다.
+
+[GDD in 2017](https://www.youtube.com/watch?v=BofWWZE1wts "GDD Link")영상을 보면
+
+이개발자분이 설명하기를 View는 UI그자체로써 activity 와 fragment를 의미하며 , 모든데이터는 ViewModel에서 선언되고 사용되며 이데이터들을 observe 하여 UI를 업데이트 해야한다.
+
+Model에서는 repository가 내장데이터베이스와 네트워크통신계층을 추상화하고, Entity로써 사용될 데이터형식을 정의해두고 Dao를통해 데이터를 SIUD 하거나 통신라이브러리로 GET,POST 등등이 이루어진다.
+
+따라서, Observer패턴을 이용하기위해 liveData 와 Model에서 데이터베이스를 좀더 편하게 이용하기위해 Room라이브러리가 도입되었다고 소개한다.(또한 데이터바인딩을 통해 전혀 데이터들을 View에 선언할 이유가 없어진것같다?)
+
+그런데 나는 위내용들에서 activity와 fragment에 데이터를 생성해서 두고있었다.
+
+```kotlin
+class Register : Fragment() {
+    private var _binding : RegisterBinding ?= null
+    private val binding get() = _binding!!
+    private val loginViewModel by lazy { ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory(requireActivity().application))[LoginViewModel::class.java] }
+    private val user by lazy { User("","","") } //이부분!!
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        _binding=RegisterBinding.inflate(inflater,container,false)
+        return binding.root
+    }
+```
+
+6번줄에서 생성된 user객체를 데이터바인딩으로 layout에 정의된 user객체에 할당하고 있었던 모습이다. 이방식이 아닌, 뷰모델에 User객체를 정의하고 layout에서는 단지 Viewmodel.user객체를 사용하면 되는데 굳이 user객체를 View에 생성하고 데이터바인딩으로 결합한것이다. 매우잘못한 방식이었다.
+
+게다가, 
+
+```kotlin
+ val checkNameIsCorrect = fun(inputString:String){
+        if(inputString.contains(Regex("[^0-9a-zA-Zㄱ-힣_]"))){
+            binding.etName.helperText="특수문자(_)를 제외하고 입력될수 없습니다."
+        }
+        else
+            binding.etName.helperText=""
+    }
+
+    val checkIdIsCorrect = fun(inputString:String){
+        if(inputString.contains("[^0-9a-zA-Zㄱ-힣]".toRegex())){
+            binding.etID.helperText="특수문자는 입력될수 없습니다."
+        }
+        else
+            binding.etID.helperText=""
+    }
+
+    val checkPwIsCorrect = fun(inputString: String){
+        if(inputString.contains("[^0-9a-zA-Zㄱ-힣!@#*]".toRegex())){
+            binding.etPW.helperText="영대소문자,숫자,특수문자(!,@,#,*)만 가능합니다."
+        }
+        else
+            binding.etPW.helperText=""
+        if(binding.etPWCheck.helperText?.isNotEmpty() == true){
+            binding.editTextPWCheck.setText("")
+            binding.etPWCheck.helperText=""
+        }
+    }
+
+    val checkPwDoubleIsCorrect = fun(inputString: String){
+        if(inputString!=user.userPw){
+            binding.etPWCheck.helperText="비밀번호가 일치하지 않습니다."
+        }
+        else
+            binding.etPWCheck.helperText=""
+    }
+```
+애초에 뷰의 내용을 갱신하는 녀석이 들어있기때문에 fragment에 정의해둔것도 맘에들지않았는데, 이구조를 보는중간에 문득 왜이렇게 중복되어 사용되고 있지? 라는 생각이 들었다. 아무리봐도 패턴부분과 출력할 helperText의 출력문구부분이 중복된다.
+
+```kotlin
+private fun checkRegisterInfoIsCorrect(inputString: String, pattern:String, text:String):String{
+        var txt=""
+        if(inputString.contains(pattern.toRegex())){
+            txt = text
+        }
+        return txt
+    }
+```
+
+따라서 위와같이 중복되는 지점들을 매개변수로 받아주고, 출력문구를 리턴시켜줬다. 이유는 패턴에충족하면 빈문자열을 리턴해야하기 때문
+
+게다가 데이터바인딩의 개념도 재대로숙지를 못햇으니... 뷰의갱신이 있다고한들 양방향데이터바인딩을 사용하면 layout에 들어갈 문자열객체를 선언해두고 viewmodel에서 문자열값만 바꾸면 되는게 아닌가? 라는생각이 들었다.
+
+```kotlin
+val info by lazy{ RegisterInfo(ObservableField(""),ObservableField(""),ObservableField(""),ObservableField("")) }
+
+private fun checkRegisterInfoIsCorrect(inputString: String, pattern:String, text:String):String{
+        var txt=""
+        if(inputString.contains(pattern.toRegex())){
+            txt = text
+        }
+        return txt
+    }
+
+    val checkNameIsCorrect = fun(inputString:String){
+        info.r_Name.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣_]","특수문자는 (_)를 제외하고 입력될 수 없습니다."))
+    }
+
+    val checkIdIsCorrect = fun(inputString:String){
+        info.r_Id.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣]","특수문자는 입력될수 없습니다."))
+    }
+
+    val checkPwIsCorrect = fun(inputString: String){
+        info.r_Pw.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣!@#*]","영대소문자,숫자,특수문자(!,@,#,*)만 가능합니다."))
+    }
+```
+
+아주 만족스러운 상황이 됬지만, 이렇게 해놓고보니 loginViewModel의 덩치가 너무커졌다. 
+
+그러자 문득 '기능의 분리' 가 떠올랐다. 유튜버 개발바닥 채널에서 OOP의 잠깐언급에서 기능을 왜분리하고.. 라는단어가 떠올랐다.
+
+현재 loginViewModel의 코드내용을 보자면,
+
+```kotlin
+class LoginViewModel(private val app: Application) : AndroidViewModel(app) {
+    private val repository= LoginRepository.getInstance(app.applicationContext)
+    var mutableLogFlag = MutableLiveData(0)
+    val logFlag: LiveData<Int> get() = mutableLogFlag
+
+    fun loginUser(client:User){
+        viewModelScope.launch(Dispatchers.Main){checkUser(client,"환영합니다.","비밀번호가 틀렸습니다.","존재하지 않는 계정 입니다.")}
+    }
+    suspend fun registerUser(user:User):Boolean{
+        var result=false
+        viewModelScope.launch(Dispatchers.Main){
+            val job = launch{checkUser(user,"이미 존재하는 아이디 입니다.","이미 존재하는 아이디 입니다.",user.userName+"님의 회원가입이 완료되었습니다.")}
+            job.join()
+            if(logFlag.value==0) {
+                repository.addUser(user)
+                result=true
+                Log.d("test", "${user.userId} ${user.userPw}")
+            }
+            mutableLogFlag.value=0
+        }.join()
+        return result
+    }
+
+    fun deleteUser(id:String,pw:String){
+        viewModelScope.launch(Dispatchers.IO) { repository.deleteUser(User(id,"jinho",pw)) }
+    }
+
+    suspend fun checkUser(client:User,succeedText:String,wrongText:String,notFoundText:String) {
+        val user= withContext(Dispatchers.IO) { repository.getUser() }
+        for(data in user){
+            if(client.userId==data.userId&&client.userPw==data.userPw){
+                mutableLogFlag.value=1
+                Toast.makeText(app,succeedText,Toast.LENGTH_SHORT).show()
+                return
+            }
+            else if(client.userId==data.userId&&client.userPw!=data.userPw){
+                mutableLogFlag.value=2
+                Toast.makeText(app,wrongText,Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+        if(logFlag.value==0){
+            Toast.makeText(app,notFoundText,Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun loginKakao(){
+        if (AuthApiClient.instance.hasToken()) {
+            UserApiClient.instance.accessTokenInfo { _, error ->
+                if (error != null) {
+                    if (error is KakaoSdkError && error.isInvalidTokenError()) {
+                        loginWithKakaoAccount()
+                    }
+                    else {
+                        Log.d("test","카카오 로그인 에러")
+                    }
+                }
+                else {
+                    //토큰 유효성 체크 성공(필요 시 토큰 갱신됨)
+                }
+            }
+        }
+        else {
+            loginWithKakaoAccount()
+        }
+    }
+    fun loginWithKakaoAccount() {
+        UserApiClient.instance.loginWithKakaoAccount(app.applicationContext) { token, error ->
+            if (error != null) {
+                Log.e("Tag", "Login 실패")
+            } else if (token != null) {
+                Log.e("Tag", "로그인 성공")
+            }
+        }
+    }
+}
+```
+
+내장데이터베이스에 있는정보로 로그인,회원가입기능과 카카오로그인 기능이 있고, 로그인과 회원가입시 회원정보를 검색하는 checkUser()메소드가 존재한다.
+
+이렇게보니 loginViewModel의 이름과달리 회원가입이 왜있지? 라는생각이 들었다.
+
+따라서 login기능과 register기능을 분리하고, 중복해서 사용하고있는 필드변수인 logFlag와 데이터바인딩으로 사용될 User객체 그리고 checkUser()메소드를 ManageMemberViewModel로 새로운 클래스로 할당한뒤 loginViewModel과 RegisterViewModel이 각각 상속받도록 구성하였다.
+
+이는또하나의 OOP개념의 상속을 왜쓰는가의 개념에 부합한다... 부모클래스가 가지는건 자식클래스가 가지는것으로 재사용의 극대화
+
+```kotlin
+open class ManageMemberViewModel(val app: Application) : AndroidViewModel(app) {
+    val repository= LoginRepository.getInstance(app.applicationContext)
+    var mutableLogFlag = MutableLiveData(0)
+    val logFlag: LiveData<Int> get() = mutableLogFlag
+    val user by lazy { User("","","") }
+
+    suspend fun checkUser(client: User, succeedText:String, wrongText:String, notFoundText:String) {
+        val user = withContext(Dispatchers.IO) { repository.getUser() }
+        for (data in user) {
+            if (client.userId == data.userId && client.userPw == data.userPw) {
+                mutableLogFlag.value = 1
+                Toast.makeText(app.applicationContext, succeedText, Toast.LENGTH_SHORT).show()
+                return
+            } else if (client.userId == data.userId && client.userPw != data.userPw) {
+                mutableLogFlag.value = 2
+                Toast.makeText(app.applicationContext, wrongText, Toast.LENGTH_SHORT).show()
+                return
+            }
+        }
+        if (logFlag.value == 0) {
+            Toast.makeText(app.applicationContext, notFoundText, Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+```
+
+코틀린에서는 모든클래스가 final로 선언되기때문에 상속이 불가능하다. 이를 상속가능하게 하려면 open class로 선언해야한다.
+
+```kotlin
+class LoginViewModel(app: Application): ManageMemberViewModel(app) {
+    fun loginUser(){
+        viewModelScope.launch(Dispatchers.Main){checkUser(user,"환영합니다.","비밀번호가 틀렸습니다.","존재하지 않는 계정 입니다.")}
+    }
+
+    fun loginKakao(){
+        if (AuthApiClient.instance.hasToken()) {
+            UserApiClient.instance.accessTokenInfo { _, error ->
+                if (error != null) {
+                    if (error is KakaoSdkError && error.isInvalidTokenError()) {
+                        loginWithKakaoAccount()
+                    }
+                    else {
+                        Log.d("test","카카오 로그인 에러")
+                    }
+                }
+                else {
+                    //토큰 유효성 체크 성공(필요 시 토큰 갱신됨)
+                }
+            }
+        }
+        else {
+            loginWithKakaoAccount()
+        }
+    }
+    fun loginWithKakaoAccount() {
+        UserApiClient.instance.loginWithKakaoAccount(app.applicationContext) { token, error ->
+            if (error != null) {
+                Log.e("Tag", "Login 실패")
+            } else if (token != null) {
+                Log.e("Tag", "로그인 성공")
+            }
+        }
+    }
+}
+```
+
+```kotlin
+class RegisterViewModel(app: Application) :ManageMemberViewModel(app) {
+    val info by lazy{ RegisterInfo(ObservableField(""),ObservableField(""),ObservableField(""),ObservableField("")) }
+
+    suspend fun registerUser():Boolean{
+        var result=false
+        viewModelScope.launch(Dispatchers.Main){
+            val job = launch(Dispatchers.Main){//main스레드인이유는 checkUser()에서 메인스레드영역의 리소스를 사용하기때문. toast와 livedata.setvalue()
+                checkUser(user,"이미 존재하는 아이디 입니다.","이미 존재하는 아이디 입니다.",user.userName+"님의 회원가입이 완료되었습니다.") }
+            job.join()
+            if(logFlag.value==0) {
+                repository.addUser(user)
+                result=true
+                Log.d("test", "pres: ${user.userId} ${user.userPw}")
+            }
+            mutableLogFlag.value=0
+        }.join()
+        return result
+    }
+
+    fun deleteUser(id:String,pw:String){
+        viewModelScope.launch(Dispatchers.IO) { repository.deleteUser(User(id,"jinho",pw)) }
+    }
+
+    private fun checkRegisterInfoIsCorrect(inputString: String, pattern:String, text:String):String{
+        var txt=""
+        if(inputString.contains(pattern.toRegex())){
+            txt = text
+        }
+        return txt
+    }
+
+    val checkNameIsCorrect = fun(inputString:String){
+        info.r_Name.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣_]","특수문자는 (_)를 제외하고 입력될 수 없습니다."))
+    }
+
+    val checkIdIsCorrect = fun(inputString:String){
+        info.r_Id.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣]","특수문자는 입력될수 없습니다."))
+    }
+
+    val checkPwIsCorrect = fun(inputString: String){
+        info.r_Pw.set(checkRegisterInfoIsCorrect(inputString,"[^0-9a-zA-Zㄱ-힣!@#*]","영대소문자,숫자,특수문자(!,@,#,*)만 가능합니다."))
+    }
+
+    val checkPwDoubleIsCorrect = fun(inputString: String){
+        if(inputString!=user.userPw){
+            info.r_PwDouble.set("비밀번호가 일치하지 않습니다.")
+        }
+        else
+            info.r_PwDouble.set("")
+    }
+}
+```
+
+LoginViewModel과 RegisterViewModel을 각각 나눠 생성하여 딱 클래스이름의 컨셉과 맞는 기능들만 사용하도록 기능을 분리했다.
+
+또한, 위에서 보앗듯이 양방향데이터 바인딩을 사용하기위해 1번방식인 ObservableField로 변수를 선언해뒀고, layout에서는 @={} 로 선언했다.
+
+regiserUser()내부에 코루틴블럭이 main인 이유는 설명해둿듯이 checkUser()내부 로직에서 Toast와 livedata의 setValue()를 사용하기때문에 메인스레드영역의 리소스라서 main으로 context를 선언했다.
+
+.join()을 하는이유도 마찬가지로 checkUser()의 결과값에 따라 아래로직이 수행되어야 하므로 job객체의 생명주기를 컨트롤한것.
+
+원래는 회원관리 기능을 만들려고했는데 만들고보니 문제가 보인다... 할때 똑바로..하자..
 # References
 ---
 (데이터바인딩)
