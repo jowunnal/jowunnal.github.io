@@ -1,7 +1,7 @@
 ---
 title: "[Android] 데이터바인딩 사용하여 로그인기능 구현"
 categories:
-- Android
+- Projects
 tags:
 - Study
 ---

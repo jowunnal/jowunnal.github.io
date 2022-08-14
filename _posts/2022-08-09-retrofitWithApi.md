@@ -1,7 +1,7 @@
 ---
 title: "[Android] Retrofit2 로 Api통신하기"
 categories:
-- Android
+- Projects
 tags:
 - Study
 ---
