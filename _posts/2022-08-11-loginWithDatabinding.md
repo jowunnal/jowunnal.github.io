@@ -125,16 +125,16 @@ text의 값에 user객체의 user.Name이 양방향결합으로 선언되어 use
 양방향결합이 완성되기 위해서는 결합될 객체가 Observable함이 보장되어야만 한다. 방법은 3가지가 있다.
 # Observable?
 ---
-1. ObservableField 객체로 선언한다.
+- ObservableField 객체로 선언한다.
 
 위의 user객체의 클래스의 필드의 타입이 ObservableField<>로 선언되면 된다.
 
-2. 결합객체가 선언되는(사용되는) 클래스를 BaseObservable()를 상속받도록하고, 결합객체의 getter와 setter위에 @Bindable 어노테이션을 정의한다.
+- 결합객체가 선언되는(사용되는) 클래스를 BaseObservable()를 상속받도록하고, 결합객체의 getter와 setter위에 @Bindable 어노테이션을 정의한다.
 
 이는 kotlin의 data class로는 사용할수없는것같다. getter 와 setter를 정의하고 그위에 @Bindable 어노테이션을 직접 정의해야 하기때문. 
 또한, getter를 @Bindable로 정의해두면 그에 상응하는 setter는 자동적으로 Bindable함을 보장해주니 getter만 해둬도 된다.
 
-3. 2번의 방식에서 필드변수위에 @get:Bindable 어노테이션과함께 선언하고, notifyPropertyChanged()를 선언한다.
+- 위의 2번의 방식에서 필드변수위에 @get:Bindable 어노테이션과함께 선언하고, notifyPropertyChanged()를 선언한다.
 
 자세한 설명은 [공식가이드](https://developer.android.com/topic/libraries/data-binding/observability "구글공식가이드") 의 설명을 참조하기 바람.(2022.08.12내용수정>)
 
