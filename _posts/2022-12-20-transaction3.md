@@ -1,5 +1,5 @@
 ---
-title: "[데이터베이스] Transaction 3# Transaction 실제 적용"
+title: "[데이터베이스] Transaction #3 Transaction 실제 적용"
 categories:
 - DataBase
 tags:
