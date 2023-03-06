@@ -1,7 +1,7 @@
 ---
 title: "[데이터베이스] Transaction #4 고립수준"
 categories:
-- Projects
+- DataBase
 tags:
 - Study
 ---
