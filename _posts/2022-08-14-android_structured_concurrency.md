@@ -1,5 +1,5 @@
 ---
-title: "[Android] Structured Concurrency"
+title: "[Coroutine] Structured Concurrency"
 categories:
 - Coroutines
 tags:
@@ -14,9 +14,9 @@ tags:
 
 >  Structured concurrency ensures that they are not lost and do not leak. An outer scope cannot complete until all its children coroutines complete. Structured concurrency also ensures that any errors in the code are properly reported and are never lost.
 
-해석하자면, 부모코루틴의 동일스쿠프상의 자식코루틴들이 모두수행될때까지 종료되지 않고 에러가  report되며 누락되지 않는다.
+해석하자면, 부모코루틴은 자식코루틴들이 모두수행될때까지 종료되지 않고 에러가  report되며 누락되지 않는다.
 
-[what is job?](https://jowunnal.github.io/coroutines/coroutine_job/ "link")에서 설명햇듯이 새로운 CoroutineScope 에서 선언된 코루틴들은 job.join() 혹은 .await()을통해 완료됨을 보장해주지 않으면 부모코루틴이 종료되면서 자식들도 함께 종료됬었다. 하지만 같은 스쿠프상의 자식코루틴들은 완전히 종료됨을 보장한다.
+[what is job?](https://jowunnal.github.io/coroutines/coroutine_job/ "link")에서 설명햇듯이 새로운 CoroutineScope 에서 선언된 코루틴들은 job.join() 혹은 .await()을통해 완료됨을 보장해주지 않으면 부모코루틴이 종료되면서 자식들도 함께 종료됬었다. 즉, 코루틴 스쿠프는 자식코루틴이 완전히 종료될 때 까지 대기한다.
 
  직접 코드를통해 확인해보자.
  
@@ -90,7 +90,17 @@ suspend fun DreamCode(){
 
 [2017 KotlinConf](https://www.youtube.com/watch?v=_hfBv0a09Jc "youtube") 를 참고바란다.
 
-요약하자면, 코루틴을 switch-case문으로 바꾸고 CPS(Continuation Passing Style)객체를 매개변수로 받아 suspend function의 상태를 저장한다. 이를 callback parameter로 사용하여 각 case문이 동작하고나서 다음case문을 수행(resume)하도록 하는것이다.[세차원님의 유튜브](https://www.youtube.com/watch?v=DOXyH1RtMC0&list=PLbJr8hAHHCP5N6Lsot8SAnC28SoxwAU5A&index=5 "link")
+코루틴은 중단가능한(suspendable) 함수들의 집합인 Continuation 객체를 스케쥴링 하는 객체 라고 생각한다.
+
+요약하자면, 내부적으로 코루틴 빌더에 의해 만들어진 코루틴은 내부의 코드블럭을 Continuation 객체 단위로 만들고, 최상위 CoroutineScope에 의해 각 continuation 객체들을 순서대로 suspend -> resume 패턴으로 수행한다. ( suspend 함수들을 순서대로 resume하여 수행시키는 패턴으로 structured concurrency 하게 동작할수 있는것이다.)
+
+또한, 수행할 Continuation 마다 현재 CoroutineContext의 Dispatcher의 전환이 필요한지 isDispatchNeeded() 함수로 확인하여, 전환이 필요하다면 dispatch()로 해당 Dispatcher로 전환한다.(해당 Thread를 생성하여 수행)
+
+Dispatcher는 어떤 Thread에서 수행될것인가를 결정하는 Context이므로, 만약 따로 할당해주지 않는다면 부모의 Dispatcher를 그대로 상속받게된다.
+
+즉, Dispatcher가 같다면 추가적으로 Thread를 생성하지 않으므로 Thread클래스와 달리 light-weight-thread 라고 불리는 것이다. 
+
+[세차원님의 유튜브](https://www.youtube.com/watch?v=DOXyH1RtMC0&list=PLbJr8hAHHCP5N6Lsot8SAnC28SoxwAU5A&index=5 "link")와 [코루틴 Deep Dive](https://myungpyo.medium.com/reading-coroutine-official-guide-thoroughly-part-0-20176d431e9d "link") 에서 볼수 있다.
 
 따라서 suspend-resume 구조를 바탕으로 Dream code를 작성할수 있다고 말한다.
 

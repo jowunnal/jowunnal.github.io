@@ -1,5 +1,5 @@
 ---
-title: "[Android] What is Job?"
+title: "[Coroutine] What is Job?"
 categories:
 - Coroutines
 tags:
@@ -189,7 +189,6 @@ fun main(): Unit = runBlocking{
     }
 
     job.start()
-    delay(1000)
     job.cancel("Job is cancelled")
     println(job.getCancellationException())
     delay(2000)
@@ -200,9 +199,9 @@ fun main(): Unit = runBlocking{
 
 반복문과 같은 cpu-consuming 작업을 수행중일때는 cancel()을하여도 1~10까지 모두 출력됨을 볼수있다. 이를해결하려면 어떡해야 할까?
 
-- 방법1. suspend를 걸어준다.
+- 방법1. delay를 걸어준다.
 
-앞의 예시처럼 반복문내부에 delay를 걸어줌으로써 suspend에 의해 현재 Coroutine의 cancellation을 확인하고 중지할수있다.
+앞의 예시처럼 반복문내부에 delay를 걸어줌으로써 현재 Coroutine의 cancellation을 확인하고 중지할수있다.
 
 - 방법2. 명시적으로 isActive()를 통해 상태를 체크한다.
 

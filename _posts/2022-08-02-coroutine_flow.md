@@ -1,5 +1,5 @@
 ---
-title: "[Android] Flow"
+title: "[Coroutine] Flow"
 categories:
 - Coroutines
 tags:
