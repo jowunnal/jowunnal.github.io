@@ -4,6 +4,10 @@ categories:
 - Coroutines
 tags:
 - Study
+
+toc: true
+toc_sticky: true
+toc_label: "목차"
 ---
 
 [Strucutred Concurrency](https://jowunnal.github.io/coroutines/android_structured_concurrency/ "link") 에 이어서 Exception Handling에 대해서 알아보자.

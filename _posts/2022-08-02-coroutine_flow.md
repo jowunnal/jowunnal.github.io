@@ -4,6 +4,10 @@ categories:
 - Coroutines
 tags:
 - Study
+
+toc: true
+toc_sticky: true
+toc_label: "목차"
 ---
 
 Jetbrains의 Coroutine Flow의 docs 개요는 이렇게 시작한다.

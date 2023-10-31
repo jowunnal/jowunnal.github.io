@@ -4,6 +4,9 @@ categories:
 - DataBase
 tags:
 - Study
+toc: true
+toc_sticky: true
+toc_label: 목차
 ---
 
 앞서 [Transaction #1](https://jowunnal.github.io/database/transaction1/ "link")와 [Transaction #2](https://jowunnal.github.io/database/transaction2/ "link") 에서 회복과 병행제어에 대해서 정리해 보았다.
@@ -26,7 +29,7 @@ Read+Write에서 발생하는 현상은 다음 3가지와 같다.
 2. Non-Repeatable Read
 3. Phantom Read
 
-### Dirty Read
+## Dirty Read
 Read UnComitted (커밋하기 전에도 데이터를 읽을수 있는 경우)에서 T2가 데이터를 write 한채로 부분완료 상태일때 (물리적연산들을 모두 수행하고 commit 혹은 rollback을 호출하기 직전의상태) T1이 데이터를 읽었다고 가정해보자.
 
 T2가 commit을 수행하면 T1은 재대로된 데이터를 읽은 셈이다.
@@ -47,7 +50,7 @@ T2가 commit을 수행하면 T1은 재대로된 데이터를 읽은 셈이다.
 
 이 수준을 고립수준 1단계 라고 한다. ( 0,1,2,3,4 단계가 존재함)
 
-### Non-Repeatable Read
+## Non-Repeatable Read
 Non-Repeatable Read는 T1이 반복해서 읽기 작업을 수행하는 도중에 T2가 데이터를 변경(update)한 경우이다.
 
 ```
@@ -64,7 +67,7 @@ select 학번 from 학생 where 고객이름 = '진호' --> 학번=2016
 
 하지만 이또한 수행시점이 달랐을뿐 문제가아니라 __현상__ 이라는 것이다. 나중에 읽은 데이터는 당연히 다를수도 있다는 현상인 것이다.
 
-### Phantom Read
+## Phantom Read
 Phantom Read의 경우 T1이 반복읽기를 하던중에 T2가 데이터를 삽입(insert)하여 앞선시점과 이후시점의 데이터가 달라 잘못된 읽기를 했을 경우이다.
 
 ```

@@ -24,8 +24,8 @@ description              : " "
 url                      : "https://jowunnal.github.io" # the base hostname & protocol for your site e.g. "https://mmistakes.github.io"
 baseurl                  : ""# the subpath of your site, e.g. "/blog"
 repository               : "jowunnal/jowunnal.github.io" # GitHub username/repo-name e.g. "mmistakes/minimal-mistakes"
-teaser                   : "/assets/images/jinho.jpg" # path of fallback teaser image, e.g. "/assets/images/500x300.png"
-logo                     : "/assets/images/jinho.jpg" # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
+teaser                   : # path of fallback teaser image, e.g. "/assets/images/500x300.png"
+logo                     : # path of logo image to display in the masthead, e.g. "/assets/images/88x88.png"
 masthead_title           : "Jinho's blog"# overrides the website title displayed in the masthead, use " " for no title
 # breadcrumbs            : false # true, false (default)
 words_per_minute         : 200
@@ -86,16 +86,16 @@ social:
 
 # Analytics
 analytics:
-  provider               : false # false (default), "google", "google-universal", "google-gtag", "custom"
+  provider               : "google-gtag" # false (default), "google", "google-universal", "google-gtag", "custom"
   google:
-    tracking_id          :
+    tracking_id          : "G-M2BSKL16CX"
     anonymize_ip         : # true, false (default)
 
 
 # Site Author
 author:
   name             : "황진호"
-  avatar           : "/assets/images/jinho.jpg" # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
+  avatar           : "/assets/jinho.jpg" # path of avatar image, e.g. "/assets/images/bio-photo.jpg"
   bio              : "**공부한걸 요약해서 기록해놓는 블로그**"
   location         : "Republic of Korea"
   email            : 

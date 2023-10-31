@@ -4,6 +4,10 @@ categories:
 - Projects
 tags:
 - Study
+
+toc: true
+toc_sticky: true
+toc_label: "목차"
 ---
 
 이전글 [Retrofit2 로 Api통신하기](https://jowunnal.github.io/android/retrofitWithApi "link") 에서 이어지는 토이 프로젝트 이다.

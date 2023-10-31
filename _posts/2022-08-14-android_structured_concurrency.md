@@ -4,6 +4,10 @@ categories:
 - Coroutines
 tags:
 - Study
+
+toc: true
+toc_sticky: true
+toc_label: "목차"
 ---
 
 [세체한님의 유튜브](https://www.youtube.com/channel/UCJeARDV434voq3IxRTBfzLw "link")영상중 Coroutine의 강의영상을 보고 [What is Job?](https://jowunnal.github.io/coroutines/coroutine_job/ "what is job")이후 연계되는 코루틴의 학습코멘트를 남겨보고자 한다.

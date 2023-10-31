@@ -4,6 +4,9 @@ categories:
 - DataBase
 tags:
 - Study
+toc: true
+toc_sticky: true
+toc_label: 목차
 ---
 
 이번에는 트랜잭션을 실제로 이용해보는 예를 공부한내용을 정리해보겠다.
@@ -57,7 +60,7 @@ DBMS마다 각각의 공식 사이트에서 JDBC Driver를 다운받은후 자�
 
 즉, 사용할때 호출하고 사용이끝나면 닫아주어야 하므로 DriverManager.getConnection()을 호출하는 작업을 메소드로 분리해놓고 SQL문을 호출하는 메소드의 맨처음에 호출하고 사용이 끝나면 close()로 닫아주는 방식으로 사용하여야 한다.
 
-### SQL문 사용
+## SQL문 사용
 SQL문을 사용하기 위해서는 Statement 객체를 생성하여야 한다.
 
 Statement객체는 3가지로 분류되는데 Statement, PreparedStatement, CallableStatement가 있다. Statement를 상속받는게 PreparedStatement고 , PreparedStatement를 상속받은게 CallableStatement이다.
