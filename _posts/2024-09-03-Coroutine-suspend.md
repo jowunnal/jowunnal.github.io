@@ -75,17 +75,11 @@ suspend fun getResultsFromApi(cont: Continuation<String>): Any {
         var label = 0
         var data = ""
 
-        override fun resumeWith(result: Result<String>) {
-            val res = try {
-                val r = getResultsFromApi(this)
-                if (r == COROUTINE_SUSPEND)
-                    return
-
-                Result.success(r as String)
-            } catch (e: Throwable) {
-                Result.failure(e)
-            }
-            cont.resumeWith(res)
+        @Nullable
+        public final Object invokeSuspend(@NotNull Object $result) {
+            this.result = $result;
+            this.label |= Integer.MIN_VALUE;
+            return DeleteCollectionUsecase.this.invoke((List)null, (Continuation)this);
         }
     }
 
@@ -109,7 +103,9 @@ suspend fun getResultsFromApi(cont: Continuation<String>): Any {
 
 ```
 
-생성된 Continuation 인스턴스는 getResultsFromApi() 함수만의 새로운 Continuation 클래스로 decorate 되고, 함수의 지역변수들과 실행 흐름을 저장하기 위한 label 을 가지면서 콜스택을 유지할 수 있습니다. 
+생성된 Continuation 인스턴스는 getResultsFromApi() 함수만의 새로운 Continuation 인스턴스인 ContinuationImpl로 decorate 됩니다. ContinuationImpl 인스턴스가 구현하고 있는 invokeSuspend() 는 중단지점을 생성하는 함수입니다. 이후에 재개될 때 invokeSuspend() 를 호출하여 중단을 호출했던 함수로 재개하고 label 값으로 이전의 실행흐름에서 이어 나갈 수 있습니다. 
+
+궁극적으로 Continuation 은 중단함수의 지역변수들과 실행 흐름을 저장하기 위한 label(suspention point 를 분리하는 목적) 을 가지면서 콜스택을 유지합니다.
 
 ## Call Stack
 
@@ -126,21 +122,64 @@ suspend fun getResultsFromApi(cont: Continuation<String>): Any {
 3. 부모 코루틴이 취소되면, 자식 코루틴들도 모두 취소됩니다.
 4. 자식 코루틴에서 발생한 예외는 부모 코루틴으로 전파되며, 모두 완료됩니다. 단, CancellationException(취소로 인한 예외) 은 전파되지 않습니다.
 
-kotlin compiler 는 suspend 함수 호출을 기준으로 switch-case 문으로 labeling 하게 됩니다. label 정보는 현재의 실행 흐름을 판단하는 기준이 되며 Continuation 내에 저장됩니다. 또, suspend 함수의 반환 타입이 Any 인 이유는 중단함수는 COROUTINE_SUSPEND 라는 상수를 리턴하기 때문입니다.
+kotlin compiler 는 suspention point 를 기준으로 switch-case 문으로 labeling 하게 됩니다. label 정보는 현재의 실행 흐름을 판단하는 기준이 되며 Continuation 내에 저장됩니다. 또, suspend 함수의 반환 타입이 Any 인 이유는 중단함수는 COROUTINE_SUSPEND 라는 상수를 리턴하기 때문입니다.
 
 ## COROUTINE_SUSPEND
 
-앞서 보았듯이 중단함수가 호출되면, 해당 지점에서 코루틴은 __중단__ 되어 현재의 코루틴이 스레드를 내놓고 다른 코루틴이 스레드를 점유하게 됩니다. 이를 통해 스레드를 블로킹하지 않아 더 나은 성능을 보장할 수 있습니다. 이러한 동작이 수행되는 이유는 중단함수가 COROUTINE_SUSPEND 를 반환하기 때문입니다.
+앞서 보았듯이 중단함수가 호출되면, 해당 지점에서 코루틴은 __중단__ 되어 현재의 코루틴이 스레드를 내놓고 다른 코루틴이 스레드를 점유할 수 있게 됩니다. 이를 통해 스레드를 블로킹하지 않아 더 효과적으로 동작할 수 있습니다.(이 때문에 코루틴이 lightweightened Thread 라고 불립니다.) 이러한 동작이 수행되는 이유는 중단함수가 COROUTINE_SUSPEND 를 반환하기 때문입니다.
 
-COROUTINE_SUSPEND 는 단순히 상수이며, 이 값이 리턴되면 콜스택의 끝까지 해당 상수를 리턴합니다. 결론적으로 해당 콜스택을 벗어나게 되고, 다른 코루틴이 스레드를 점유할 수 있게 되는 것 입니다.
+COROUTINE_SUSPEND 는 단순히 상수이며, 이 값이 리턴되면 콜스택의 끝까지 해당 상수를 리턴합니다. 결론적으로 콜스택을 벗어나게 되고, 재개되기 전까지 다른 코루틴이 스레드를 점유할 수 있게 되는 것 입니다.
 
 ![suspend_coroutine](/assets/coroutine_suspendCoroutine.PNG)
 
-위 사진에서 코루틴스쿠프가 실행되면 코루틴 A 가 스레드를 점유합니다.(여기서는 설명을 위해 단일스레드라고 생각하겠습니다. 실제로는 디스패쳐가 가지고 있는 스레드풀의 워커스레드들이 FIFO 구조로 각 작업을 실행하게 됩니다.) 이후 suspend function 1 을 실행하면서 결과적으로 suspend function 3까지 실행된 후 COROUTINE_SUSPEND 를 콜스택 전체에서 반환하면서 벗어나면서 코루틴 B가 스레드를 점유합니다. 다시, 코루틴 B의 suspend function 4 를 호출하면 결과적으로 suspend function 6 까지 실행된 후 COROUTINE_SUSPEND 를 반환하면서 콜스택에서 벗어나고 코루틴 A가 스레드를 점유합니다. 위의 실행 흐름으로 코루틴들의 코드들이 모두 실행됩니다.
+위 사진에서 코루틴스쿠프가 실행되면 코루틴 A 가 스레드를 점유합니다. 이후 suspend function 1 을 실행하면서 결과적으로 suspend function 3까지 실행된 후 Delay() 의 반환값인 COROUTINE_SUSPEND 를 반환하면서 콜스택을 벗어나고 코루틴 B가 스레드를 점유합니다.(여기서는 설명을 위해 싱글스레드라고 생각하겠습니다. 실제로는 디스패쳐에 따라 Dispathcers.Main 이 아니라면 스레드풀의 여러 워커 스레드들이 FIFO 구조로 각 작업을 실행하게 되기 때문에 코루틴 A가 재개되기 전까지 반드시 해당 스레드를 코루틴 B가 점유할 거라고 볼 수도 없으며 같은 스레드로 코루틴A가 재개될 거라는 보장도 없습니다.) 
+
+다시, 코루틴 B의 suspend function 4 를 호출하면 결과적으로 suspend function 6 까지 실행된 후 Delay() 의 반환값인 COROUTINE_SUSPEND 를 반환하면서 콜스택에서 벗어나고 재개된 코루틴 A가 스레드를 점유하면서 이전 실행 흐름인 suspend function 3 에서 작업을 재개합니다. 해당 중단함수는 I/O 작업이나 Delay 같은 기다려야 하는 작업이 없다면 즉시 결과값을 반환하면서 이전의 suspend function 2 에서 재개되며, 이러한 흐름으로 모든 중단함수를 실행한 코루틴이 완료(completed)됩니다.
 
 그렇다면 콜스택에서 벗어난 뒤, 다시 원래의 실행흐름으로 어떻게 돌아올까요?
 
 ## ResumeWith()
 
-결론적으로 중단된 코루틴을 재개하기 위해서는 Continuation 인터페이스의 resumeWith() 를 호출해야 합니다. 함수의 실행이 끝나면 외부에서 resumeWith() 를 호출하면서 중단 지점부터 재개하게 되며, 최초 호출 함수까지 중단함수를 재개하면서 코루틴이 완료(Completed)됩니다.
+결론적으로 중단된 코루틴을 재개하기 위해서는 Continuation 인터페이스의 resumeWith() 를 호출해야 합니다. 함수의 실행이 끝나면 외부에서 resumeWith() 를 호출하면서 중단 지점부터 재개하게 되며, 최초 호출 함수까지 중단함수를 차례로 재개하면서 결과값을 반환하게 되고 코루틴이 완료(Completed)됩니다.
 
+```kotlin
+internal abstract class BaseContinuationImpl(
+    // This is `public val` so that it is private on JVM and cannot be modified by untrusted code, yet
+    // it has a public getter (since even untrusted code is allowed to inspect its call stack).
+    public val completion: Continuation<Any?>?
+) : Continuation<Any?>, CoroutineStackFrame, Serializable {
+    // This implementation is final. This fact is used to unroll resumeWith recursion.
+    public final override fun resumeWith(result: Result<Any?>) {
+        // This loop unrolls recursion in current.resumeWith(param) to make saner and shorter stack traces on resume
+        var current = this
+        var param = result
+        while (true) {
+            // Invoke "resume" debug probe on every resumed continuation, so that a debugging library infrastructure
+            // can precisely track what part of suspended callstack was already resumed
+            probeCoroutineResumed(current)
+            with(current) {
+                val completion = completion!! // fail fast when trying to resume continuation without completion
+                val outcome: Result<Any?> =
+                    try {
+                        val outcome = invokeSuspend(param)
+                        if (outcome === COROUTINE_SUSPENDED) return
+                        Result.success(outcome)
+                    } catch (exception: Throwable) {
+                        Result.failure(exception)
+                    }
+                releaseIntercepted() // this state machine instance is terminating
+                if (completion is BaseContinuationImpl) {
+                    // unrolling recursion via loop
+                    current = completion
+                    param = outcome
+                } else {
+                    // top-level completion reached -- invoke and return
+                    completion.resumeWith(outcome)
+                    return
+                }
+            }
+        }
+    }
+```
+
+위의 예시에서 바이트코드로 보았던 ContinuationImpl 인스턴스는 BaseContinuationImpl 추상클래스를 상속하고 있으며 여기서 resumeWith() 를 구현하고 있습니다. 결론적으로 여기서 중단함수의 결과값을 리턴하고 이전 중단지점 이었던 함수를 재실행하여 중단지점에서 재개하게 됩니다. 또한 예외처리 역시 지원되고 있습니다.
