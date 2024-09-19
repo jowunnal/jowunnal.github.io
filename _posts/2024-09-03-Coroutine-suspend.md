@@ -10,7 +10,7 @@ toc_sticky: true
 toc_label: 목차
 ---
 
-Jetsbrains 의 Kotlin 은 비동기 작업을 쉽게 동기로 작성하고 실행할 수 있는 기능을 제공하는 라이브러리 입니다. Coroutine 의 핵심인 Suspend 키워드는 Kotlin Compiler 가 compile time 에 특정 코드를 생성 및 변환하여 스레드를 블로킹 하지 않고 __중단__시킴으로써 더 효율적으로 동작합니다.
+Jetsbrains 의 Kotlinx.Coroutines 는 비동기 작업을 쉽게 동기로 작성하고 실행할 수 있는 기능을 제공하는 라이브러리 입니다. Coroutine 의 핵심인 Suspend 키워드는 Kotlin Compiler 가 compile time 에 특정 코드를 생성 및 변환하여 스레드를 블로킹 하지 않고 __중단__시킴으로써 더 효율적으로 동작합니다.
 
 오늘 살펴볼 내용은 Coroutine 의 suspend 가 어떤 코드들을 생성하고, 나아가서 어떤 원리로 동작 하는지를 살펴보는 것 입니다.
 
