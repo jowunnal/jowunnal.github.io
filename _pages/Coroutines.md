@@ -1,6 +1,6 @@
 ---
 layout: category
-permalink: "/categories/Android/Coroutines"
+permalink: "/categories/Kotlin/Coroutines"
 author_profile: true
 taxonomy: Coroutines
 ---
