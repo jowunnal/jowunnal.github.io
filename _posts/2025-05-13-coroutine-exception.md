@@ -353,3 +353,286 @@ suspend fun main() {
   }
 }
 ```
+
+# 코루틴 빌더 vs 코루틴 스쿠프 함수
+
+그렇다면 코루틴을 생성하는데 있어서 코루틴 빌더를 사용하는 것과 코루틴 스쿠프 함수를 사용하는 것에 대한 차이점이 뭘까요? 명칭만 봐서는 코루틴 스쿠프를 생성하거나 그렇지 않은 것 처럼 보이지만 앞서 살펴본 내부 구조에서 코루틴 빌더로 생성된 코루틴은 AbstractCoroutine 을 상속함으로써 코루틴 스쿠프를 생성하는 것과 다를 바가 없었습니다. 또한, 코루틴 스쿠프 함수들도 결국 내부적으로 새로운 코루틴을 생성하여 실행하고 있기 때문에 두가지 모두 새로운 코루틴을 생성한다는 점에서 동일합니다.
+
+다만, 구현에 따라 몇가지 차이점이 존재합니다.
+
+## Dispatch 최적화
+
+코루틴 빌더인 launch 나 async 로 생성되는 코루틴은 CoroutineContext 에 등록된 Dispatcher 와 CoroutineStart 의 타입에 따라 스레드를 관리하는 Dispatcher 로 dispatch 과정이 발생할지 말지가 결정됩니다. 보통의 경우로 예시를 들자면, Dispatchers.Default 기본값과 CoroutineStart.Default 기본값을 사용한다면 해당 코루틴은 항상 dispatch 과정이 동반됩니다. dispatch 과정은 빌더 함수를 호출한 thread 에서 Dispatcher 가 관리중인 스레드로 실행할 task 를 전달하는 과정이 수행되어, 실행중인 thread 에서 바로 task 를 실행하는 것 보다 느리다고 주석에 설명되어 있습니다.
+
+하지만, 코루틴 스쿠프 함수는 최대한 코루틴 스쿠프 함수를 호출하는 thread 에서 바로 task 가 실행되도록 구현되어 있습니다. RunBlocking 의 경우 호출 스레드를 차단하고 Dispatchers.Default 로 실행하며, withContext 의 경우 매개변수로 전달받은 CoroutineContext 에서 호출자(부모)와 다른 Dispatcher 가 포함되어 있다면 해당 Dispatcher 로 dispatch 과정이 일어납니다. 그 외의 coroutineScope, supervisorScope, withTimeOut 함수들은 dispatch 없이 호출자의 스레드에서 실행됩니다.
+
+### 코루틴 빌더
+
+코루틴 빌더로 생성되는 코루틴을 시작시킬 때, CoroutineStart 값에 따라 다르게 시작된다는 점도 확인했었습니다.
+
+```kotlin
+public fun CoroutineScope.launch(  
+    context: CoroutineContext = EmptyCoroutineContext,  
+    start: CoroutineStart = CoroutineStart.DEFAULT,  
+    block: suspend CoroutineScope.() -> Unit  
+): Job {  
+    val newContext = newCoroutineContext(context)  
+    val coroutine = if (start.isLazy)  
+        LazyStandaloneCoroutine(newContext, block) else  
+        StandaloneCoroutine(newContext, active = true)  
+    coroutine.start(start, coroutine, block)  // --> 이부분 입니다.
+    return coroutine  
+}
+
+public fun <T> CoroutineScope.async(  
+    context: CoroutineContext = EmptyCoroutineContext,  
+    start: CoroutineStart = CoroutineStart.DEFAULT,  
+    block: suspend CoroutineScope.() -> T  
+): Deferred<T> {  
+    val newContext = newCoroutineContext(context)  
+    val coroutine = if (start.isLazy)  
+        LazyDeferredCoroutine(newContext, block) else  
+        DeferredCoroutine<T>(newContext, active = true)  
+    coroutine.start(start, coroutine, block)  // --> 이부분 입니다.
+    return coroutine  
+}
+
+abstract class AbstractCoroutine { // 다른 부분들은 생략
+  public fun <R> start(start: CoroutineStart, receiver: R, block: suspend R.() -> T) {  
+      start(block, receiver, this)  
+  }
+}
+```
+
+코루틴을 시작시키기 위해 AbstractCoroutine#start 함수를 호출하는데, StandaloneCoroutine 과 DeferredCoroutine 은 CoroutineStart 의 타입에 따라 코루틴을 시작시키는 함수로 위임합니다.
+
+```kotlin
+@InternalCoroutinesApi  
+public operator fun <R, T> invoke(block: suspend R.() -> T, receiver: R, completion: Continuation<T>): Unit =  
+    when (this) {  
+        DEFAULT -> block.startCoroutineCancellable(receiver, completion)  
+        ATOMIC -> block.startCoroutine(receiver, completion)  
+        UNDISPATCHED -> block.startCoroutineUndispatched(receiver, completion)  
+        LAZY -> Unit // will start lazily  
+  }
+```
+
+그리고 결과적으로 해당 코루틴의 실행 block 을 Runnable task 로 만든 후, CoroutineContext 에 등록된 Dispatcher 에 따라 지정된 스레드에서 해당 Runnable 이 실행되게 됩니다. 이 때, Dispatcher 가 Unconfined 가 아닌 경우 반드시 dispatch 과정이 동반되며, 성능적 오버헤드가 발생합니다.(해당 과정의 코드들이 많고 복잡하기 때문에 포스팅에 삽입하지는 못했지만, 직접 찾아보시는걸 권장드립니다.)
+
+### 코루틴 스쿠프 함수
+
+이와 달리, coroutineScope() 에서는 dispatch 과정이 일어나지 않고 코루틴 스쿠프 함수를 호출하고 있는 현재 스레드에서 block 이 실행되도록 합니다.
+
+```kotlin
+
+public suspend fun <R> coroutineScope(block: suspend CoroutineScope.() -> R): R {  
+    contract {  
+  callsInPlace(block, InvocationKind.EXACTLY_ONCE)  
+    }  
+  return suspendCoroutineUninterceptedOrReturn { uCont ->  
+  val coroutine = ScopeCoroutine(uCont.context, uCont)  
+        coroutine.startUndispatchedOrReturn(coroutine, block)  
+    }  
+}
+
+internal fun <T, R> ScopeCoroutine<T>.startUndispatchedOrReturn(receiver: R, block: suspend R.() -> T): Any? {  
+    return undispatchedResult({ true }) {  
+  block.startCoroutineUninterceptedOrReturn(receiver, this)  
+    }  
+}
+```
+
+그렇다고 모든 코루틴 스쿠프 함수가 dispatch 를 하지 않는 것은 아닙니다. 위의 코드에서 볼 수 있듯이, 코루틴을 시작시키는 kotlinx.coroutines.intrinsics 에 정의된 함수들 중에 startUndispatchedOrReturn 를 호출하기 때문에 dispatch 가 생략될 수 있었습니다. withContext 의 경우 coroutineContext 가 필수 매개변수 이기 때문에 해당 context 에 호출자의 dispatcher 와 다르다면, dispatch 가 발생합니다.
+
+```kotlin
+public suspend fun <T> withContext(  
+    context: CoroutineContext,  
+    block: suspend CoroutineScope.() -> T  
+): T {  
+    contract {  
+  callsInPlace(block, InvocationKind.EXACTLY_ONCE)  
+    }  
+  return suspendCoroutineUninterceptedOrReturn sc@ { uCont ->  
+  // compute new context  
+  val oldContext = uCont.context  
+        // Copy CopyableThreadContextElement if necessary  
+  val newContext = oldContext.newCoroutineContext(context)  
+        // always check for cancellation of new context  
+  newContext.ensureActive()  
+        // FAST PATH #1 -- new context is the same as the old one  
+  if (newContext === oldContext) {  
+            val coroutine = ScopeCoroutine(newContext, uCont)  
+            return@sc coroutine.startUndispatchedOrReturn(coroutine, block)  
+        }  
+        // FAST PATH #2 -- the new dispatcher is the same as the old one (something else changed)  
+ // `equals` is used by design (see equals implementation is wrapper context like ExecutorCoroutineDispatcher)  if (newContext[ContinuationInterceptor] == oldContext[ContinuationInterceptor]) {  
+            val coroutine = UndispatchedCoroutine(newContext, uCont)  
+            // There are changes in the context, so this thread needs to be updated  
+  withCoroutineContext(coroutine.context, null) {  
+  return@sc coroutine.startUndispatchedOrReturn(coroutine, block)  
+            }  
+  }  
+        // SLOW PATH -- use new dispatcher  
+  val coroutine = DispatchedCoroutine(newContext, uCont)  
+        block.startCoroutineCancellable(coroutine, coroutine)  
+        coroutine.getResult()  
+    }  
+}
+```
+
+이 코드에서는 주석을 제거하지 않고 가져왔습니다. 주석을 살펴보시면, Dispatcher 가 다른 경우 SLOW PATH 라고 명시되어 있고, 그렇지 않은 경우 FAST PATH 라고 되어 있습니다. 해당 주석으로만 봐도 dispatch 과정이 동반되는 것은 그렇지 않은 과정보다 느리다고 판단될 수 있습니다.
+
+이와 달리 RunBlocking 은 호출자 스레드를 단순히 차단하고, Dispatchers.Default 로 코루틴을 시작시킵니다.
+
+```kotlin
+@Throws(InterruptedException::class)  
+public actual fun <T> runBlocking(context: CoroutineContext, block: suspend CoroutineScope.() -> T): T {  
+    /*
+    중략
+    */  
+    val coroutine = BlockingCoroutine<T>(newContext, currentThread, eventLoop)  
+    coroutine.start(CoroutineStart.DEFAULT, coroutine, block)  
+    return coroutine.joinBlocking()  
+}
+
+private class BlockingCoroutine<T>(  
+    parentContext: CoroutineContext,  
+    private val blockedThread: Thread,  
+    private val eventLoop: EventLoop?  
+) : AbstractCoroutine<T>(parentContext, true, true) {  
+    @Suppress("UNCHECKED_CAST")  
+    fun joinBlocking(): T {  
+        registerTimeLoopThread()  
+        try {  
+            eventLoop?.incrementUseCount()  
+            try {  
+                while (true) {  
+                    @Suppress("DEPRECATION")  
+                    if (Thread.interrupted()) throw InterruptedException().also { cancelCoroutine(it) }  
+  val parkNanos = eventLoop?.processNextEvent() ?: Long.MAX_VALUE  
+  if (isCompleted) break  
+  parkNanos(this, parkNanos)  
+                }  
+            } finally { // paranoia  
+  eventLoop?.decrementUseCount()  
+            }  
+        } finally { // paranoia  
+  unregisterTimeLoopThread()  
+        }  
+  val state = this.state.unboxState()  
+        (state as? CompletedExceptionally)?.let { throw it.cause }  
+  return state as T  
+  }  
+}
+```
+
+#### SupervisorScope
+
+superviserScope 도 마찬가지로 coroutineScope 와 같이 dispatch 없이 호출자 스레드에서 block 을 실행시킵니다. 하지만, superviserScope 는 자식에게 발생한 예외를 부모로 전파하지 않는 조금 다른 특성을 가집니다.
+
+```kotlin
+public suspend fun <R> supervisorScope(block: suspend CoroutineScope.() -> R): R {  
+    contract {  
+      callsInPlace(block, InvocationKind.EXACTLY_ONCE)  
+    }  
+    return suspendCoroutineUninterceptedOrReturn { uCont ->  
+      val coroutine = SupervisorCoroutine(uCont.context, uCont)  
+      coroutine.startUndispatchedOrReturn(coroutine, block)  
+    }  
+}  
+
+private class SupervisorCoroutine<in T>(  
+    context: CoroutineContext,  
+    uCont: Continuation<T>  
+) : ScopeCoroutine<T>(context, uCont) {  
+    override fun childCancelled(cause: Throwable): Boolean = false  
+}
+```
+
+supervisorScope 에서 생성되는 코루틴은 SuperviserCoroutine 클래스의 인스턴스 입니다. 해당 코루틴은 JobSupport#childCancelled 를 false 값을 반환하도록 override 하고 있습니다.
+
+```kotlin
+public open class JobSupport constructor(active: Boolean) : Job, ChildJob, ParentJob {
+  public open fun childCancelled(cause: Throwable): Boolean {  
+      if (cause is CancellationException) return true  
+   return cancelImpl(cause) && handlesException  
+  }
+}
+```
+
+JobSupport#childCancelled 는 자식에게 발생한 예외에 대해 부모가 취소될지 말지 그리고 자식의 예외를 처리할지 말지를 결정하는 함수입니다. 반환값이 true 라면 예외를 처리함과 동시에 취소되며, false 인 경우 예외를 처리하지 않고 부모가 취소되지 않습니다.
+
+supervisorCoroutine 은 해당 값을 false 를 반환하도록 하여, 자식에 대한 예외를 처리하지 않고 자식의 예외가 부모인 supervisorCoroutine 을 취소되지 않도록 만듭니다. 따라서 하위 코루틴에서 발생한 예외에 의해 부모가 취소되면서 다른 형제 코루틴들이 취소되지 않도록 해주지만, 상위 코루틴의 취소는 하위로 그대로 전파되어 취소시키는 특징을 갖습니다.
+
+이러한 구조는 ViewModel 의 ViewModelScope 에서도 사용되고 있습니다. ViewModelScope 은 supervisorScope 을 사용하지는 않지만, supervisorJob 을 CoroutineContext 로 가집니다.
+
+```kotlin
+
+public val ViewModel.viewModelScope: CoroutineScope  
+  get() = synchronized(VIEW_MODEL_SCOPE_LOCK) {  
+    getCloseable(VIEW_MODEL_SCOPE_KEY)  
+       ?: createViewModelScope().also { scope -> addCloseable(VIEW_MODEL_SCOPE_KEY, scope)
+    }  
+  }
+ 
+internal fun createViewModelScope(): CloseableCoroutineScope {  
+  val dispatcher = try {  
+     Dispatchers.Main.immediate  
+  } catch (_: NotImplementedError) {  
+    EmptyCoroutineContext  
+  } catch (_: IllegalStateException) {   
+    EmptyCoroutineContext  
+  }  
+  
+  return CloseableCoroutineScope(coroutineContext = dispatcher + SupervisorJob())  
+}
+```
+
+supervisorScope 과 달리 supervisorJob 을 사용하는 것은 구조화된 동시성을 깰 수 있는 문제가 있습니다. viewModelScope 는 CoroutineScope 의 context 로 할당하기 때문에 최상위 코루틴이 supervisorJob 을 부모로 갖게 되어 문제가 없지만, 최상위 코루틴이 아닌 하위 코루틴이나 supervisorScope 이 아닌 코루틴 스쿠프 함수에 할당할 경우 구조화된 동시성이 깨지는 문제가 발생합니다.
+
+```kotlin
+suspend fun main() {
+  runBlocking {
+    launch(SupervisorJob()) {
+      delay(500)
+      throw IllegalArgumentException("예외")
+    }
+  }
+}
+```
+
+위 예시에서 500ms 후에 예외가 발생해야 하지만 예외 발생없이 종료됩니다. 그 이유는 runBlocking() 의 Job 이 자식 코루틴의 부모가 되어야 하지만, SupervisorJob 이 runBlocking 의 job 을 override 해버리게 되어 부모-자식 간의 관계가 깨져버리기 때문입니다. 따라서, runBlocking 은 자식이 종료될 때 까지 대기해야 하지만 자식이 없는 상태가 되어 그대로 종료되게 됩니다.
+
+이렇듯 최상위 코루틴이 아닌 경우에는 supervisorScope() 함수를 사용하는 것이 더 적절합니다.
+
+```kotlin
+suspend fun main() {
+  runBlocking {
+    supervisorScope {
+      launch {
+        delay(500)
+        throw IllegalArgumentException("예외")
+      }
+    }
+  }
+}
+```
+
+하지만 위에서 설명한 바와 같이 supervisorScope 에서 발생한 예외는 코루틴 스쿠프 함수의 호출 부분에서 그대로 던져지기 때문에 해당 예외를 try-catch 로 잡아야 합니다.
+
+```kotlin
+suspend fun main() {
+  runBlocking {
+    try {
+      supervisorScope {
+        delay(500)
+        throw IllegalArgumentException("예외")
+      }
+    } catch (e: Exception) {
+      // TODO
+    }
+  }
+}
+```
+
+결과적으로 코루틴 빌더와 달리 코루틴 스쿠프 함수는 좀 더 빠른 실행을 위한 dispatch 최적화 과정을 수행하며, 중단 함수로써의 특징을 갖습니다.
