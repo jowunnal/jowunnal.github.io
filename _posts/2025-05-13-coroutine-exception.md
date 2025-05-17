@@ -275,7 +275,7 @@ private class LazyDeferredCoroutine<T>(
 
 ```kotlin
 suspend fun main() {
-  runBlocking {
+  runBlocking { // await() 에 예외를 처리했어도, 부모-자식 관계에 의해 예외는 부모로 전파되어 취소됩니다.
     val result = async { 
       //TODO
     }
@@ -287,13 +287,13 @@ suspend fun main() {
 }
 ```
 
-만약, await() 호출을 예외 처리 해주지 않는다면 해당 예외는 상위 코루틴으로 전파시킵니다. 코루틴의 예외는 앞서 살펴 보았듯이 구조화된 동시성 내에서 항상 부모 코루틴으로 전파시키며, 최상위(Root) 코루틴에서 예외를 처리하도록 위임합니다.
+하지만, await() 호출에 예외를 처리해도, 상위 코루틴으로 예외가 전파됩니다. 코루틴의 예외는 앞서 살펴 보았듯이 구조화된 동시성 내에서 항상 부모 코루틴으로 전파시키며, 최상위(Root) 코루틴에서 예외를 처리하도록 위임한다는 점을 유의해야 합니다. 
 
-코루틴 스쿠프 함수도 마찬가지로 JobSupport#handleJobException() 을 별도로 override 하지 않습니다. 또한 코루틴 스쿠프 함수들은 block 의 결과값을 그대로 반환하기 때문에 해당 함수의 호출 부분에서 별도의 예외를 처리해야 합니다.
+보통 이런 경우 코루틴 스쿠프 함수를 활용하는 것이 예외를 처리하는데 편리합니다. 코루틴 스쿠프 함수는 block 내에서 발생한 예외를 단순히 호출자에 그대로 던지기 때문에, 코루틴 스쿠프 함수 호출을 try-catch 로 잡아서 처리하면 부모 코루틴에 전파되지는 않습니다.
 
 # Coroutine Scope Function
 
-기본적인 예시로 coroutineScope() 함수를 살펴보겠습니다.
+코루틴 스쿠프 함수도 마찬가지로 JobSupport#handleJobException() 을 별도로 override 하지 않습니다. 기본적인 예시로 coroutineScope() 함수를 살펴보겠습니다.
 
 ```kotlin
 public suspend fun <R> coroutineScope(block: suspend CoroutineScope.() -> R): R {  
@@ -348,7 +348,7 @@ private fun cancelParent(cause: Throwable): Boolean {
 suspend fun main() {
   runBlocking {
     try { 
-      coroutineScope {} // 호출 부분에서 예외가 그대로 throw 됩니다.
+      coroutineScope { throw Exception } // 호출 부분에서 예외가 그대로 throw 됩니다.
     } catch (e: Exception) {}
   }
 }
@@ -356,15 +356,15 @@ suspend fun main() {
 
 # 코루틴 빌더 vs 코루틴 스쿠프 함수
 
-그렇다면 코루틴을 생성하는데 있어서 코루틴 빌더를 사용하는 것과 코루틴 스쿠프 함수를 사용하는 것에 대한 차이점이 뭘까요? 명칭만 봐서는 코루틴 스쿠프를 생성하거나 그렇지 않은 것 처럼 보이지만 앞서 살펴본 내부 구조에서 코루틴 빌더로 생성된 코루틴은 AbstractCoroutine 을 상속함으로써 코루틴 스쿠프를 생성하는 것과 다를 바가 없었습니다. 또한, 코루틴 스쿠프 함수들도 결국 내부적으로 새로운 코루틴을 생성하여 실행하고 있기 때문에 두가지 모두 새로운 코루틴을 생성한다는 점에서 동일합니다.
+그렇다면 코루틴을 생성하는데 있어서 코루틴 빌더를 사용하는 것과 코루틴 스쿠프 함수를 사용하는 것에 대한 차이점이 뭘까요? 명칭만 봐서는 코루틴 스쿠프를 생성하거나 그렇지 않은 것 처럼 보이지만 앞서 살펴본 내부 구조에서 코루틴 빌더로 생성된 코루틴도 마찬가지로 CoroutineScope 를 구현하는 AbstractCoroutine 을 상속하기 때문에 코루틴 스쿠프를 생성한다는 점에서 코루틴 스쿠프 함수와 동일합니다. .
 
 다만, 구현에 따라 몇가지 차이점이 존재합니다.
 
 ## Dispatch 최적화
 
-코루틴 빌더인 launch 나 async 로 생성되는 코루틴은 CoroutineContext 에 등록된 Dispatcher 와 CoroutineStart 의 타입에 따라 스레드를 관리하는 Dispatcher 로 dispatch 과정이 발생할지 말지가 결정됩니다. 보통의 경우로 예시를 들자면, Dispatchers.Default 기본값과 CoroutineStart.Default 기본값을 사용한다면 해당 코루틴은 항상 dispatch 과정이 동반됩니다. dispatch 과정은 빌더 함수를 호출한 thread 에서 Dispatcher 가 관리중인 스레드로 실행할 task 를 전달하는 과정이 수행되어, 실행중인 thread 에서 바로 task 를 실행하는 것 보다 느리다고 주석에 설명되어 있습니다.
+코루틴 빌더인 launch 나 async 로 생성되는 코루틴은 CoroutineContext 에 등록된 Dispatcher 와 CoroutineStart 의 타입에 따라 스레드를 관리하는 Dispatcher 로 dispatch 과정이 발생할지 말지가 결정됩니다. 보통의 경우로 예시를 들자면, Dispatchers.Default(기본값) 과 CoroutineStart.Default(기본값) 을 사용한다면 해당 코루틴은 항상 dispatch 과정이 동반됩니다. dispatch 과정은 빌더 함수를 호출한 thread 에서 Dispatcher 가 관리중인 스레드로 실행할 task 를 전달하는 과정이 수행되어, 호출자 thread 에서 바로 task 를 실행하는 것 보다 느리다고 주석에 설명되어 있습니다.
 
-하지만, 코루틴 스쿠프 함수는 최대한 코루틴 스쿠프 함수를 호출하는 thread 에서 바로 task 가 실행되도록 구현되어 있습니다. RunBlocking 의 경우 호출 스레드를 차단하고 Dispatchers.Default 로 실행하며, withContext 의 경우 매개변수로 전달받은 CoroutineContext 에서 호출자(부모)와 다른 Dispatcher 가 포함되어 있다면 해당 Dispatcher 로 dispatch 과정이 일어납니다. 그 외의 coroutineScope, supervisorScope, withTimeOut 함수들은 dispatch 없이 호출자의 스레드에서 실행됩니다.
+하지만, 코루틴 스쿠프 함수는 최대한 dispatch 없이 호출자 thread 에서 바로 task 가 실행되도록 구현되어 있습니다. 물론 모두가 그런것은 아니어서 RunBlocking 의 경우 호출 스레드를 차단하고 Dispatchers.Default 로 실행하기 때문에 dispatch가 발생하고, withContext 의 경우 매개변수로 전달받은 CoroutineContext 에서 호출자(부모)와 다른 Dispatcher 가 포함되어 있다면 해당 Dispatcher 로 dispatch 과정이 일어납니다. 그 외의 coroutineScope, supervisorScope, withTimeOut 함수들은 dispatch 없이 호출자의 Thread 에서 실행됩니다.
 
 ### 코루틴 빌더
 
@@ -404,7 +404,7 @@ abstract class AbstractCoroutine { // 다른 부분들은 생략
 }
 ```
 
-코루틴을 시작시키기 위해 AbstractCoroutine#start 함수를 호출하는데, StandaloneCoroutine 과 DeferredCoroutine 은 CoroutineStart 의 타입에 따라 코루틴을 시작시키는 함수로 위임합니다.
+코루틴을 시작시키기 위해 AbstractCoroutine#start 함수를 호출하는데, StandaloneCoroutine 과 DeferredCoroutine 은 CoroutineStart invoke 연산자 메소드로 위임합니다.
 
 ```kotlin
 @InternalCoroutinesApi  
@@ -421,7 +421,7 @@ public operator fun <R, T> invoke(block: suspend R.() -> T, receiver: R, complet
 
 ### 코루틴 스쿠프 함수
 
-이와 달리, coroutineScope() 에서는 dispatch 과정이 일어나지 않고 코루틴 스쿠프 함수를 호출하고 있는 현재 스레드에서 block 이 실행되도록 합니다.
+이와 달리, 코루틴 스쿠프 함수들 에서는 dispatch 과정이 일어나지 않고 코루틴 스쿠프 함수를 호출하고 있는 호출자 스레드에서 block 이 최대한 실행되도록 구현됩니다. 대표적 예시로 coroutineScope 를 살펴보자면,
 
 ```kotlin
 
@@ -442,7 +442,7 @@ internal fun <T, R> ScopeCoroutine<T>.startUndispatchedOrReturn(receiver: R, blo
 }
 ```
 
-그렇다고 모든 코루틴 스쿠프 함수가 dispatch 를 하지 않는 것은 아닙니다. 위의 코드에서 볼 수 있듯이, 코루틴을 시작시키는 kotlinx.coroutines.intrinsics 에 정의된 함수들 중에 startUndispatchedOrReturn 를 호출하기 때문에 dispatch 가 생략될 수 있었습니다. withContext 의 경우 coroutineContext 가 필수 매개변수 이기 때문에 해당 context 에 호출자의 dispatcher 와 다르다면, dispatch 가 발생합니다.
+코루틴을 시작시키는 kotlinx.coroutines.intrinsics 에 정의된 startUndispatchedOrReturn 를 호출하여 dispatch 없이 호출자 thread 에서 그대로 block 을 실행합니다. coroutineScope 와 달리 withContext 의 경우 coroutineContext 가 필수 매개변수 이며, 해당 coroutineContext 의 dispatcher 가 호출자의 dispatcher 와 다르다면, dispatch 를 수행합니다.
 
 ```kotlin
 public suspend fun <T> withContext(  
@@ -554,15 +554,15 @@ supervisorScope 에서 생성되는 코루틴은 SuperviserCoroutine 클래스�
 ```kotlin
 public open class JobSupport constructor(active: Boolean) : Job, ChildJob, ParentJob {
   public open fun childCancelled(cause: Throwable): Boolean {  
-      if (cause is CancellationException) return true  
-   return cancelImpl(cause) && handlesException  
+    if (cause is CancellationException) return true  
+    return cancelImpl(cause) && handlesException  
   }
 }
 ```
 
-JobSupport#childCancelled 는 자식에게 발생한 예외에 대해 부모가 취소될지 말지 그리고 자식의 예외를 처리할지 말지를 결정하는 함수입니다. 반환값이 true 라면 예외를 처리함과 동시에 취소되며, false 인 경우 예외를 처리하지 않고 부모가 취소되지 않습니다.
+JobSupport#childCancelled 는 자식에게 발생한 예외에 대해 부모가 취소될지 말지 그리고 자식의 예외를 처리할지 말지를 결정하는 함수입니다. 반환 값이 true 라면 예외를 처리함과 동시에 취소되며, false 인 경우 예외를 처리하지 않고 부모가 취소되지도 않습니다.
 
-supervisorCoroutine 은 해당 값을 false 를 반환하도록 하여, 자식에 대한 예외를 처리하지 않고 자식의 예외가 부모인 supervisorCoroutine 을 취소되지 않도록 만듭니다. 따라서 하위 코루틴에서 발생한 예외에 의해 부모가 취소되면서 다른 형제 코루틴들이 취소되지 않도록 해주지만, 상위 코루틴의 취소는 하위로 그대로 전파되어 취소시키는 특징을 갖습니다.
+supervisorCoroutine 은 해당 값을 false 를 반환하도록 하여, 자식에 대한 예외를 처리하지 않고, 자식의 예외가 부모인 supervisorCoroutine 을 취소되지 않도록 만듭니다. 따라서 하위 코루틴에서 발생한 예외를 처리 및 전파하지 않아, 다른 형제 코루틴들이 취소되지 않도록 해주지만, 상위 코루틴의 취소는 하위로 그대로 전파하여 취소시키는 특징을 갖습니다.
 
 이러한 구조는 ViewModel 의 ViewModelScope 에서도 사용되고 있습니다. ViewModelScope 은 supervisorScope 을 사용하지는 않지만, supervisorJob 을 CoroutineContext 로 가집니다.
 
@@ -588,7 +588,7 @@ internal fun createViewModelScope(): CloseableCoroutineScope {
 }
 ```
 
-supervisorScope 과 달리 supervisorJob 을 사용하는 것은 구조화된 동시성을 깰 수 있는 문제가 있습니다. viewModelScope 는 CoroutineScope 의 context 로 할당하기 때문에 최상위 코루틴이 supervisorJob 을 부모로 갖게 되어 문제가 없지만, 최상위 코루틴이 아닌 하위 코루틴이나 supervisorScope 이 아닌 코루틴 스쿠프 함수에 할당할 경우 구조화된 동시성이 깨지는 문제가 발생합니다.
+supervisorScope 과 달리 supervisorJob 을 사용하는 것은 구조화된 동시성을 깰 수 있는 문제가 있습니다. viewModelScope 는 CoroutineScope 의 CoroutineContext 로 할당하기 때문에 최상위 코루틴이 supervisorJob 을 부모로 갖게 되어 문제가 없지만, 최상위 코루틴이 아닌 하위 코루틴이나 supervisorScope 이 아닌 코루틴 스쿠프 함수에 할당할 경우 구조화된 동시성이 깨지는 문제가 발생합니다.
 
 ```kotlin
 suspend fun main() {
@@ -601,13 +601,17 @@ suspend fun main() {
 }
 ```
 
-위 예시에서 500ms 후에 예외가 발생해야 하지만 예외 발생없이 종료됩니다. 그 이유는 runBlocking() 의 Job 이 자식 코루틴의 부모가 되어야 하지만, SupervisorJob 이 runBlocking 의 job 을 override 해버리게 되어 부모-자식 간의 관계가 깨져버리기 때문입니다. 따라서, runBlocking 은 자식이 종료될 때 까지 대기해야 하지만 자식이 없는 상태가 되어 그대로 종료되게 됩니다.
+위 예시에서 500ms 후에 예외가 발생해야 하지만 예외 발생없이 종료됩니다. 그 이유는 runBlocking() 의 Job 이 자식 코루틴(launch)의 부모가 되어야 하지만, SupervisorJob 이 runBlocking 의 job 을 override 해버리게 되어 부모-자식 간의 관계가 깨져버리기 때문입니다. 따라서, runBlocking 은 자식이 종료될 때 까지 대기해야 하지만 자식이 없는 상태가 되어 그대로 종료되게 됩니다.
 
 이렇듯 최상위 코루틴이 아닌 경우에는 supervisorScope() 함수를 사용하는 것이 더 적절합니다.
 
+#### SupervisorScope 의 예외처리
+
+supervisorScope 의 예외는 다른 코루틴 스쿠프 함수들과 다르게 처리됩니다. 코루틴 스쿠프 함수들은 공통적으로 함수 호출 부분에서 예외를 처리해야 하지만, supervisorScope 은 자식에게 발생한 예외가 SupervisorCoroutine 에서 처리 및 전파되지는 않아 구조화된 동시성 내에서 부모 나 형제 코루틴을 취소시키지는 않지만, 해당 코루틴의 예외는 구조화된 동시성 내에서 부모 코루틴에게 "보고"됩니다.
+
 ```kotlin
 suspend fun main() {
-  runBlocking {
+  runBlocking { // 코루틴이 취소되지는 않지만, IllegalArgumentException 이 발생합니다.
     supervisorScope {
       launch {
         delay(500)
@@ -618,19 +622,32 @@ suspend fun main() {
 }
 ```
 
-하지만 위에서 설명한 바와 같이 supervisorScope 에서 발생한 예외는 코루틴 스쿠프 함수의 호출 부분에서 그대로 던져지기 때문에 해당 예외를 try-catch 로 잡아야 합니다.
+위와 같은 경우에서는 runBlocking 함수 내부에서 생성되는 BlockingCoroutine 이 handleJobException 을 override 하지 않기 때문에 코루틴의 예외를 처리할 수 없는 단점이 있습니다. 이런 경우 최상위 코루틴이 launch 로 시작하도록 만들고 CoroutineExceptionHandler 를 이용하여 처리되지 않은 코루틴의 예외를 최상위에서 잡아주어야 합니다.
 
 ```kotlin
 suspend fun main() {
-  runBlocking {
+  CoroutineScope(Dispatchers.Default).launch (CoroutineExceptionHandler { c, t -> //TODO } { // CoroutineExceptionHandler 에서 처리되지 않은 예외가 최종적으로 처리됩니다.
+    supervisorScope {
+      launch {
+        delay(500)
+        throw IllegalArgumentException("예외")
+      }
+    }
+  }
+}
+```
+
+supervisorScope 하위의 코루틴에서 발생하는 것이 아닌, block 의 실행에서 직접적으로 발생하는 예외는 다른 코루틴 스쿠프 함수들과 같이 함수 호출에서 try-catch 로 예외를 처리하면 됩니다.
+
+```kotlin
+suspend fun main() {
+  CoroutineScope(Dispatchers.Default).launch {
     try {
       supervisorScope {
         delay(500)
         throw IllegalArgumentException("예외")
       }
-    } catch (e: Exception) {
-      // TODO
-    }
+    } catch (e: Exception) { //TODO }
   }
 }
 ```
