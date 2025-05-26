@@ -269,21 +269,29 @@ private class LazyDeferredCoroutine<T>(
 }
 ```
 
-또한, 앞서 언급한 바와 같이 StandaloneCoroutine 과 달리 DeferredCoroutine 은 JobSupport#handleJobException 을 override 하지 않습니다. 그 이유는 launch 와 달리 async 빌더는 Deferred\<T> 를 반환하고, Deferred#await() 중단 함수로 block 의 결과값이 실제로 반환될 때 예외를 처리해주어야 하기 때문입니다. 
+또한, 앞서 언급한 바와 같이 StandaloneCoroutine 과 달리 DeferredCoroutine 은 JobSupport#handleJobException 을 override 하지 않습니다.
 
 따라서 async 빌더로 생성된 코루틴은 예외를 처리할 수 있는 방법이 없으며, 같은 맥락으로 최상위 코루틴을 async 로 사용하고 CoroutineExceptionHandler 를 context 파라미터로 전달해도 동작하지 않게 됩니다. 이때는 await() 호출을 try-catch 나 runCatching 으로 wrapping 하여 예외를 처리해주어야 합니다.
 
 ```kotlin
 suspend fun main() {
-  runBlocking { // await() 에 예외를 처리했어도, 부모-자식 관계에 의해 예외는 부모로 전파되어 취소됩니다.
-    val result = async { 
-      //TODO
+    runBlocking { // await() 에 예외를 처리했어도, 부모-자식 관계에 의해 예외는 부모로 전파되어 취소됩니다.
+        val result = async {
+            delay(500)
+            throw IllegalArgumentException("exception")
+        }
+
+        launch { // 해당 코루틴이 취소됩니다.
+            delay(1000)
+            println("I am dead. so this is not printed")
+        }
+
+        try {
+            result.await() // await 호출 부분에서 예외를 처리해 주어야 합니다.
+        } catch (e: Exception) {
+            println("exception: ${e.printStackTrace()}")
+        }
     }
-    
-    try { 
-      result.await() // await 호출 부분에서 예외를 처리해 주어야 합니다.
-    } catch (e: Exception) {}
-  }
 }
 ```
 
