@@ -148,7 +148,7 @@ private fun finalizeFinishingState(state: Finishing, proposedUpdate: Any?): Any?
 }
 ```
 
-코루틴이 완료될 때, cancelParent() 함수를 호출하여 부모가 있다면 부모에 예외를 전파하면서 부모를 취소시키고 false 를 반환하며, 부모가 처리할 수 없는 경우 true 를 반환하여 JobSupport#handleJobException 을 동작시키지 않습니다. 즉, 코루틴의 예외는 항상 부모가 처리하도록 최대한 위임하며, 부모가 처리할 수 없는 경우 현재의 코루틴이 JobSupport#handleJobException 을 통해 예외를 처리할지 말지 결정하게 됩니다.
+코루틴이 완료될 때, cancelParent() 함수를 호출하여 부모가 있다면 부모에 예외를 전파하면서 부모를 취소시키고 true 를 반환하며, 부모가 처리할 수 없는 경우 false 를 반환하여 JobSupport#handleJobException 을 동작시킵니다. 즉, 코루틴의 예외는 항상 부모가 처리하도록 최대한 위임하며, 부모가 처리할 수 없는 경우 현재의 코루틴이 JobSupport#handleJobException 을 통해 예외를 처리할지 말지 결정하게 됩니다.
 
 ```kotlin
 private fun cancelParent(cause: Throwable): Boolean {  
@@ -166,7 +166,7 @@ private fun cancelParent(cause: Throwable): Boolean {
 
 먼저, JobSupport#cancelParent() 는 코루틴 스쿠프 함수로 생성된 ScopedCoroutine 타입의 코루틴 인스턴스라면 true 를 반환합니다. 이 경우 JobSupport#handleJobException 은 호출되지 않아 CoroutineExceptionHandler 로 예외가 처리되지 않고, 단순히 해당 예외를 block 의 결과로 throw 합니다.
 
-그렇지 않고 해당 코루틴이 부모가 없고 취소 예외라면 true, 그렇지 않으면 false 를 반환합니다. 취소 예외 였다면, JobSupport#handleJobException 은 호출되지 않고 단순히 현재 코루틴과 자식들을 취소시킵니다. 그 외의 예외 라면, JobSupport#handleJobException 의 결과에 따라 현재 코루틴이 예외를 처리할 수 있으면 처리하고 그렇지 않으면, 해당 예외를 block 의 결과로 throw 합니다.
+그렇지 않고 해당 코루틴이 부모가 없거나 취소 예외라면 true, 그렇지 않으면 false 를 반환합니다. 취소 예외 였다면, JobSupport#handleJobException 은 호출되지 않고 단순히 현재 코루틴과 자식들을 취소시킵니다. 그 외의 예외 라면, JobSupport#handleJobException 의 결과에 따라 현재 코루틴이 예외를 처리할 수 있으면 처리하고 그렇지 않으면, 해당 예외를 block 의 결과로 throw 합니다.
 
 scopedCoroutine 도 아니고 부모 코루틴이 존재했다면, 해당 예외를 부모로 전파하면서 취소시키게 됩니다.
 
@@ -296,6 +296,10 @@ suspend fun main() {
 ```
 
 하지만, await() 호출에 예외를 처리해도, 상위 코루틴으로 예외가 전파됩니다. 코루틴의 예외는 앞서 살펴 보았듯이 구조화된 동시성 내에서 항상 부모 코루틴으로 전파시키며, 최상위(Root) 코루틴에서 예외를 처리하도록 위임한다는 점을 유의해야 합니다. 
+
+이 부분까지를 정리하자면, 예외가 발생하는 경우 항상 부모로 전파하면서 부모를 취소시키는 구조적 동시성을 보장하게 됩니다. 또한, launch 빌더로 생성된 코루틴이면서, 최상위 부모이고, coroutineExceptionHandler 가 있는 경우 그것으로 예외를 처리할 수 있습니다. 
+
+그렇지 않은 모든 경우에는 반드시 예외가 발생하는 부분을 try-catch 로 잡아 처리하지 않는다면 구조적 동시성을 따르는 경우 부모로 예외를 전파시켜 부모를 취소시키고, 자신도 취소됩니다.
 
 보통 이런 경우 코루틴 스쿠프 함수를 활용하는 것이 예외를 처리하는데 편리합니다. 코루틴 스쿠프 함수는 block 내에서 발생한 예외를 단순히 호출자에 그대로 던지기 때문에, 코루틴 스쿠프 함수 호출을 try-catch 로 잡아서 처리하면 부모 코루틴에 전파되지는 않습니다.
 
