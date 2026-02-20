@@ -18,11 +18,11 @@ toc_label: 목차
 
 ```kotlin
 public interface Flow<out T> {  
-	public suspend fun collect(collector: FlowCollector<T>)  
+  public suspend fun collect(collector: FlowCollector<T>)  
 }
 
 public fun interface FlowCollector<in T> {  
-	public suspend fun emit(value: T)  
+  public suspend fun emit(value: T)  
 }
 ```
 
@@ -61,63 +61,59 @@ public abstract class AbstractFlow<T> : Flow<T>, CancellableFlow<T> {
 
 ```kotlin
 fun interface FlowCollector<in T> {
-	suspend fun emit(value: T)
+  suspend fun emit(value: T)
 }
 
 interface Flow<out T> {
-	suspend fun collect(collector: FlowCollector<T>)
+  suspend fun collect(collector: FlowCollector<T>)
 }
 
 int main() {
-	val flow = flow { }
-}
-```
-
-`Flow` Builder 함수는 Flow 의 인스턴스를 생성하여 반환합니다. 그리고 Flow 의 인스턴스는 반드시 `collect()` 중단 함수를 구현해야 합니다. Builder 함수를 더 이해를 돕기 위해 `Flow` 인스턴스의 구현으로 바꿔보겠습니다.
-
-```kotlin
-int main() {
-	val flow = object: Flow<T> {
-		override suspend fun collect(collector: FlowCollector<T>) {
-			collector.emit(T)
-		}
-	}
+  val flow = flow { }
 }
 ```
 
-`collect` 함수는 인자로 전달 받는 collector 의 `emit()` 중단 함수를 실행하여, 값을 **방출** 할 수 있습니다. 아까 `Flow` 는 발행자와 구독자들 간의 관계 내에서 방출 및 수집 패턴을 통해 동작한다고 언급했습니다. 그렇다면, 방출한 데이터를 수집하기 위해서는 `flow` 인스턴스의 `collect()` 를 호출하면 됩니다.
+`Flow` Builder 함수는 Flow 의 인스턴스를 생성하여 반환합니다. 그리고 Flow 의 인스턴스는 반드시 `collect()` 중단 함수를 구현해야 합니다. 더 이해를 돕기 위해, Builder 함수를 `Flow` 인스턴스의 구현으로 바꿔보겠습니다.
 
 ```kotlin
 int main() {
-	val flow = object: Flow<T> {
-		override suspend fun collect(collector: FlowCollector<T>) {
-			collector.emit(T)
-		}
-	}
-
-	val collector = object: FlowCollector<T> {
-		override suspend fun emit(value: T) {
-		
-		} 
-	}
-
-	flow.collect(collector)
+  val flow = object: Flow<T> {
+    override suspend fun collect(collector: FlowCollector<T>) {
+      collector.emit(T)
+    }
+  }
 }
 ```
 
-그리고 `collect()` 함수 인자로 전달할 `FlowCollector` 인스턴스를 마찬가지로 생성하여 전달하면, 마침내 `Flow` 의 Builder 함수의 내부를 단순하게(사실은 더 복잡한 과정을 거치지만) 만들어 볼 수 있습니다. 여기서 추가로 함수형 인터페이스는 람다식으로 치환 가능하기 때문에 좀 더 단순하게 만들어 보겠습니다.
+`collect` 함수는 인자로 전달 받는 `FlowCollector` 의 `emit()` 중단 함수를 실행하여, 값을 **방출** 할 수 있습니다. 아까 `Flow` 는 발행자와 구독자들 간의 관계 내에서 방출 및 수집 패턴을 통해 동작한다고 언급했습니다. 정확히는 중단된 '방출'을 '수집'으로 재개시킴으로써 동작합니다. 이에 따라, 중단된 방출을 트리거 하기 위해 `flow` 인스턴스의 `collect()` 를 호출하면 됩니다.
 
 ```kotlin
 int main() {
-	val flow = object: Flow<T> {
-		override suspend fun collect(collector: FlowCollector<T>) {
-			collector.emit(T)
-		}
-	}
+  val flow = object: Flow<T> {
+    override suspend fun collect(collector: FlowCollector<T>) {
+      collector.emit(T)
+    }
+  }
 
-	flow.collect { value ->
-		
-	}
+  val collector = object: FlowCollector<T> {
+    override suspend fun emit(value: T) {} 
+  }
+
+  flow.collect(collector)
+}
+```
+
+그리고 `collect()` 함수 인자로 전달할 `FlowCollector` 인스턴스를 생성하여 전달하면, 마침내 `Flow` 의 Builder 함수의 내부를 단순하게(사실은 더 복잡한 과정을 거치지만) 만들어 볼 수 있습니다. 여기서 추가로 함수형 인터페이스는 람다식으로 치환 가능하기 때문에 좀 더 단순하게 만들어 보겠습니다.
+
+```kotlin
+int main() {
+  val flow = object: Flow<T> {
+    override suspend fun collect(collector: FlowCollector<T>) {
+      collector.emit(T)
+    }
+  }
+
+  flow.collect { value -> }
 }
 ```
 
@@ -125,13 +121,11 @@ int main() {
 
 ```kotlin
 int main() {
-	val flow = flow<T> {
-		emit(T)
-	}
+  val flow = flow<T> {
+    emit(T)
+  }
 
-	flow.collect { value ->
-		
-	}
+  flow.collect { value -> }
 }
 ```
 
@@ -141,7 +135,7 @@ int main() {
 
 하지만 이와 달리, 수집기와 방출기의 `Coroutine Context` 가 다르도록 만들어야 하는 상황도 존재합니다. 즉, 서로 다른 `Coroutine`들 간에 데이터를 요청 및 응답하는 상황이 필요할 수 있습니다. 이에 대한 `Flow` 에서의 구체적 예시가 `callbackFlow()`, `buffer()`, `flowOn()` 등이 있고, 이들은 `Channel` 을 내부적으로 활용합니다.
 
-정리하자면 `Flow` 는 방출기(Emitter) 와 수집기(Collector) 의 실행 `Coroutine Context` 를 다르게 만들어야 하는 상황에서 `Channel` 을 활용하기 때문에, 이를 아는 것 역시 중요합니다.
+따라서, `Flow` 는 방출기(Emitter) 와 수집기(Collector) 의 실행 `Coroutine Context` 를 다르게 만들어야 하는 상황에서 `Channel` 을 활용하기 때문에, 이를 아는 것 역시 중요합니다.
 
 # Channel
 
@@ -153,9 +147,9 @@ int main() {
 public interface Channel<E> : SendChannel<E>, ReceiveChannel<E> {
     public companion object Factory {
 
-				/**
-				 Channel 의 Type 을 나타냅니다. Type 에 따라, Channel 이 가지는 특성이 달라집니다.
-				*/
+	/**
+	Channel 의 Type 을 나타냅니다. Type 에 따라, Channel 이 가지는 특성이 달라집니다.
+	*/
         public const val UNLIMITED: Int = Int.MAX_VALUE
         public const val RENDEZVOUS: Int = 0
         public const val CONFLATED: Int = -1
@@ -184,7 +178,7 @@ public interface ReceiveChannel<out E> {
 
 동작 구조 상 내부에 `대기 큐` 가 존재하고, `Channel` 의 버퍼에 값이 존재하지 않는 경우 소비자들이 FIFO 구조로 대기하게 됩니다. 값이 존재하는 경우에는 가장 먼저 수신을 요청한 소비자 순서대로 값을 버퍼에서 가져갑니다.
 
-유의할 점은 소비자 코루틴들의 처리 속도가 다른 경우, 값이 뒤섞일 수 있다는 것 입니다. 만약, 생산된 값이 순서를 유지해야 한다면, sequence number 를 값에 포함하거나 별도의 순서 유지를 위한 작업을 수행해야 합니다.
+`Fan-out` 에서 유의할 점은 소비자 코루틴들의 처리 속도가 다른 경우, 값이 뒤섞일 수 있다는 것 입니다. 만약, 생산된 값이 순서를 유지해야 한다면, sequence number 를 값에 포함하거나 별도의 순서 유지를 위한 작업을 수행해야 합니다.
 
 ## Channel Type
 
@@ -242,9 +236,9 @@ public fun <E> Channel(
 
 # Flow 의 Channel 활용 사례
 
-`FlowCollector` 수집기를 이용하여 결과 값을 수집할 수 있는 **최종 연산자**가 호출될 때 까지, upStream 의 `Flow` 는 값을 방출하지 않습니다. 이러한 함수형 특징을 기반으로 여러 **중간 연산자**를 활용하여 데이터 스트림에 파이프를 구축하고, 값을 변화시키거나 또는 값을 더 이상 방출되지 않도록 만들 수도 있습니다.
+`FlowCollector` 수집기를 이용하여 결과 값을 수집할 수 있는 **최종 연산자**가 호출될 때 까지, upStream 의 `Flow` 의 '방출' 은 **중단** 됩니다.. 이러한 함수형 특징을 기반으로 여러 **중간 연산자**를 활용하여 데이터 스트림에 파이프를 추가하고, 값을 변화시키거나 또는 값을 더 이상 방출되지 않도록 만들 수도 있습니다.
 
-앞서, 일반적으로 **최종 연산자** 가 실행되는 `Coroutine Context` 와 방출기의 `Coroutine Context` 가 일치하도록 Context Preservation  을 수행한다고 언급했었습니다. 해당 동작은 `SafeFlow` 인스턴스에서 구현하고 있고, 그렇다고 모든 중간 연산자들이 그러한 구조를 따르는 것은 아닙니다.
+앞서, 일반적으로 **최종 연산자** 가 실행되는 `Coroutine Context` 와 방출기의 `Coroutine Context` 가 일치하도록 **Context Preservation**  을 수행한다고 언급했었습니다. 해당 동작은 `SafeFlow` 인스턴스에서 구현하고 있고, 그렇다고 모든 중간 연산자들이 그러한 구조를 따르는 것은 아닙니다.
 
 특히, `flowOn()` 과 같은 중간 연산자는 오히려 upStream 의 실행 `Coroutine Context` 를 다르게 하기 위해서 사용할 수 있습니다.
 
@@ -259,7 +253,7 @@ public fun <T> Flow<T>.flowOn(context: CoroutineContext): Flow<T> {
 }
 ```
 
-눈여겨 봐야 할 부분은 `FusibleFlow` 입니다. `FusibleFlow` 는 간단하게 `FusibleFlow` 를 구현하는 중간 연산자들이 인접하는 경우 하나의 `Channel` 로 병합하기 위한 `fuse()` 함수를 가진 인터페이스 입니다.
+`flowOn()` 내부 구현에서 눈여겨 봐야 할 부분은 `FusibleFlow` 입니다. `FusibleFlow` 는 간단하게 `FusibleFlow` 를 구현하는 중간 연산자들이 인접하는 경우 하나의 `Channel` 로 병합하기 위한 `fuse()` 함수를 가진 인터페이스 입니다.
 
 ## FusibleFlow
 
@@ -273,9 +267,9 @@ public interface FusibleFlow<T> : Flow<T> {
 }
 ```
 
-`Channel` 을 생성하는 중간 연산자들이 연속적으로 사용될 때, 불 필요하게 리소스를 많이 필요로 하는 `Channel` 을 생성하는 것은 바람직하지 않습니다. 따라서, 해당 상황을 최적화 하기 위해 인접하는 경우 몇가지 규칙에 따라 최적화 하게 됩니다. `FusibleFlow` 를 구현하는 인스턴스에 따라 다르지만, `flowOn` 의 경우 연속적으로 사용하더라도, 가장 먼저 호출된 `flowOn` 외에는 모두 무시되도록 최적화 됩니다.
+`Channel` 을 생성하는 중간 연산자들이 연속적으로 사용될 때, 불 필요하게 리소스를 많이 필요로 하는 `Channel` 을 중복 생성하는 것은 바람직하지 않습니다. 따라서, 해당 상황을 최적화 하기 위해 인접하는 경우 몇가지 규칙에 따라 최적화 하게 됩니다. `FusibleFlow` 를 구현하는 인스턴스에 따라 다르지만, `flowOn` 의 경우 연속적으로 사용하더라도, 가장 먼저 호출된 `flowOn` 외에는 모두 무시되도록 최적화 됩니다.
 
-`flowOn` 은 upStream 의 실행 `Coroutine Context` 를 다르게 하기 위해서 사용할 수 있지만, `Channel` 의 capacity 나 onBufferOverFlow 전략은 변경할 수 없고 기본값만 사용이 가능합니다.(기본값은 BUFFERED type 입니다.) 만약, capacity 또는 onBufferOverFlow 를 바꾸고 싶다면 `buffer()` 를 사용할 수 있습니다.
+`flowOn` 은 upStream 의 실행 `Coroutine Context` 를 다르게 하기 위해서 사용할 수 있지만, `Channel` 의 capacity 나 onBufferOverFlow 전략은 변경할 수 없고 기본값만 사용이 가능합니다.(기본값은 BUFFERED type 입니다.) 만약, capacity 또는 onBufferOverFlow 를 바꾸고 싶다면 `Flow#buffer()` 를 사용할 수 있습니다.
 
 ```kotlin
 public fun <T> Flow<T>.buffer(capacity: Int = BUFFERED, onBufferOverflow: BufferOverflow = BufferOverflow.SUSPEND): Flow<T> {  
@@ -305,7 +299,7 @@ public fun <T> Flow<T>.buffer(capacity: Int = BUFFERED, onBufferOverflow: Buffer
 1. onBufferOverFlow == suspend 이고, capacity 가 BUFFERED 인 경우, 병합된 Channel 은 합계만큼의 크기를 capacity 로 갖습니다.
 2. onBufferOverFlow != suspend 라면, 앞선 `buffer()` 들은 모두 무시되며 병합된 Channel 은 해당 `buffer()` 의 인자로 전달된 capacity 의 크기와 onBufferOverFlow 를 따르게 됩니다.
 
-만약, `FusibleFlow` 들이 인접하지 않는다면 인접한 `FusibleFlow` 들만 함께 병합되고, 나머지는 새로운 `Channel` 을 같은 방식으로 병합 된다는 점을 유의해 주세요.
+만약, `FusibleFlow` 들이 인접하지 않는다면 인접한 `FusibleFlow` 들만 함께 병합되고, 나머지는 새로운 `Channel` 을 같은 방식으로 병합 된다는 점을 유의해 주세요. e.g) `FusibleFlow` 들 사이에 `FusibleFlow` 가 아닌 `Flow` 가 결합되는 상황
 
 `FusibleFlow` 를 구현하는 `Flow` 들도 다른 중간 연산자들과 마찬가지로 upStream 의 `Flow` 를 해당 `Flow` 에서 수집(collect) 한 뒤에, 함수의 특정 목적을 실현한 새로운 `Flow` 인스턴스를 생성하여 반환하는 것은 구조적으로 동일합니다.
 
@@ -314,8 +308,8 @@ public inline fun <T, R> Flow<T>.transform(
     @BuilderInference crossinline transform: suspend FlowCollector<R>.(value: T) -> Unit  
 ): Flow<R> = flow { 
   collect { value ->  
-  return@collect transform(value)  
-    }  
+    return@collect transform(value)  
+  }  
 }
 ```
 
@@ -327,29 +321,29 @@ public inline fun <T, R> Flow<T>.transform(
 
 ```kotlin
 private class StateFlowImpl<T>(  
-    initialState: Any // T | NULL  
+    initialState: Any
 ) : AbstractSharedFlow<StateFlowSlot>(), MutableStateFlow<T>, CancellableFlow<T>, FusibleFlow<T> {  
-    private val _state = atomic(initialState) // T | NULL  
-	  private var sequence = 0 // serializes updates, value update is in process when sequence is odd  
+  private val _state = atomic(initialState)  
+  private var sequence = 0
   
-	  public override var value: T  
-	  get() = NULL.unbox(_state.value)  
-	        set(value) { updateState(null, value ?: NULL) }
+  public override var value: T  
+    get() = NULL.unbox(_state.value)  
+      set(value) { updateState(null, value ?: NULL) }
 
-		override fun tryEmit(value: T): Boolean {  
-		    this.value = value  
-		    return true  
-		}  
+  override fun tryEmit(value: T): Boolean {  
+    this.value = value  
+    return true  
+  }  
   
-		override suspend fun emit(value: T) {  
-		    this.value = value  
-		}
+  override suspend fun emit(value: T) {  
+    this.value = value  
+  }
 }
 ```
 
 `StateFlow` 는 일반적인 `Cold Flow` 와 달리 구독자의 수집기(Collector) 와 값의 방출기(Emitter) 의 실행 `Coroutine Context` 가 같을 필요가 없습니다. `StateFlow` 는 내부적으로 thread-safe 한 동시성 자료 구조에 가깝기 때문에 값을 방출할 때도 suspend 할 필요가 없습니다.
 
-`tryEmit()` 과 `emit()` 모두 단순히 `this.value = value` 로써, 내부의 상태값을 의미하는 value 프로퍼티를 update 할 뿐입니다. 즉, 상위 계약 수준을 이행해야만 한다는 LSP 를 만족하기 위해 `emit()`이 suspend 함수이긴 하지만, suspend 해야만 하는 구현은 아닙니다. 따라서 굳이 `emit()` 을 사용하지 않고, `tryEmit()` 을 사용해도 문제가 없습니다. 다만, 수집기에서 `StateFlow` 를 수집(collect) 하는 경우에는 새로운 값이 방출(emit) 될 때 까지, 수집기가 중단되어야 하기 때문에 suspend 가 되어야 합니다.
+`tryEmit()` 과 `emit()` 모두 단순히 `this.value = value` 로써, 내부의 상태값을 의미하는 value 프로퍼티를 update 할 뿐입니다. 즉, 상위 계약 수준을 이행해야만 한다는 LSP(리스코프 치환 원칙) 를 만족하기 위해 `emit()`이 suspend 함수이긴 하지만, suspend 해야만 하는 구현은 아닙니다. 따라서 굳이 `emit()` 을 사용하지 않고, `tryEmit()` 을 사용해도 문제가 없습니다.(일반적으로는 그냥 `.value` 프로퍼티를 이용합니다.) 다만, 수집기에서 `StateFlow` 를 수집(collect) 하는 경우에는 새로운 값이 방출(emit) 될 때 까지, 수집기가 중단되어야 하기 때문에 `StateFlow#collect()` 함수는 suspend 가 되어야 합니다.
 
 `StateFlow` 는 단순히 가장 최신 의 값을 `value` 프로퍼티로 유지하는(CONFLATED) 동시성 자료 구조 이기 때문에 이를 위해 실행 `Coroutine Context` 가 반드시 필요한 구조가 아닙니다. 근데 만약 `StateFlow` 에 대한 이해도가 부족했거나, 실수로 인해 `flowOn()` 과 같은 `FusibleFlow` 를 구현하는 중간 연산자를 붙일 경우 `Channel` 을 굳이 만들 이유가 없는데 만들어야만 할 것 입니다.
 
@@ -361,16 +355,18 @@ viewModel.uiState.flowOn(Dispatchers.Main)
 
 ```kotlin
 internal fun <T> StateFlow<T>.fuseStateFlow(  
-    context: CoroutineContext,  
-    capacity: Int,  
-    onBufferOverflow: BufferOverflow  
+  context: CoroutineContext,  
+  capacity: Int,  
+  onBufferOverflow: BufferOverflow  
 ): Flow<T> {  
-    // state flow is always conflated so additional conflation does not have any effect  
+  // state flow is always conflated so additional conflation does not have any effect  
   assert { capacity != Channel.CONFLATED } // should be desugared by callers  
+  
   if ((capacity in 0..1 || capacity == Channel.BUFFERED) && onBufferOverflow == BufferOverflow.DROP_OLDEST) {  
-        return this  
-  }  
-    return fuseSharedFlow(context, capacity, onBufferOverflow)  
+    return this  
+  }
+
+  return fuseSharedFlow(context, capacity, onBufferOverflow)  
 }
 ```
 
@@ -402,10 +398,12 @@ sequence 는 toList(),  sum() 과 같은 최종 연산이 수행될 때 한 원�
 
 이렇듯 Cold Flow 에서도 값을 방출(emit) 한 뒤 수행되는 중간 연산(map, filter 등)은 지연된 후 collect 와 같은 최종연산자에서 모든 연산들이 실행된 결과를 반환 받을 수 있습니다. 이런 특징으로 Data Layer 에서 데이터를 비동기적으로 요청하는 데이터 로직을 처리할 때 사용합니다.
 
-반면에, UI 에 표현되는 데이터가 변경되고, 변경된 데이터를 UI에 update 해주어야 하는 상황에서는 변화하는 데이터 스트림에 실시간으로 반응해 주어야 합니다. 이러한 과정을 수행하기 위해서는 1회성으로 데이터를 요청하는 `Cold Flow` 를 활용할 수 없습니다.물론 Jetpack Room 이나 DataStore 에서는 `Flow` 를 지원하여 반환 타입으로 사용하는 경우, 해당 `Flow` 의 Coroutine 이 `Completion` 되지 않고 무한히 반복문을 통해 변경 사항을 감지하여 데이터를 발행합니다. 
+반면에, UI 에 표현되는 데이터가 변경되고, 변경된 데이터를 UI에 update 해주어야 하는 상황에서는 변화하는 데이터 스트림에 실시간으로 반응해 주어야 합니다. 이러한 과정을 수행하기 위해서는 1회성으로 데이터를 요청하는 `Cold Flow` 를 활용할 수 없습니다.물론 Jetpack Room 이나 DataStore 에서는 `Flow` 를 지원하여 반환 타입으로 사용하는 경우, 해당 `Flow` 의 Coroutine 이 `Completion` 되지 않고 무한히 반복문을 통해 변경 사항을 감지하여 데이터를 발행함으로써 지속적으로 활성화된 상태를 유지할 수도 있습니다.
 
-하지만, 안드로이드와 같은 클라이언트 환경에서는 `Lifecycle` 이 존재하고, 변화에 따라 `Flow` 가 `Completion` 되어야 하는 요구 사항이 발생하기 때문에 이를 UI 에서 구독하는 것은 **메모리 누수** 와 같은 심각한 문제가 발생할 수도 있으며, 프로세스가 `BackStack` 에서 제거되지 않음으로 인해 불 필요하게 **메모리를 점유**하는 문제가 발생할 수 있어 지양해야 하는 방법 입니다.
+하지만, 안드로이드와 같은 클라이언트 환경에서는 `Lifecycle` 이 존재하고, 변화에 따라 `Flow` 가 `Completion` 되어야 하는 요구 사항이 발생하기 때문에 이를 UI 에서 구독하는 것은 **메모리 누수** 와 같은 심각한 문제가 발생할 수도 있으며, 프로세스가 `BackStack` 에서 제거되지 않고, `Cached` 상태로 넘어가기 전인 `Background` 에 머무는 동안 불 필요하게 **메모리를 점유**하는 문제가 발생할 수 있어 지양해야 합니다.
 
-이런 상황을 위해서는 실시간으로 활성화(Active) 되어 있어야 하며, Android 의 `Lifecycle` 에 반응하는 방식(`repeatOnLifecycle` 또는 `collectAsStateWithLifecycle`) 으로 `StateFlow` 를 사용해야만 합니다. 경우에 따라서 이벤트와 같은 현재 상태값이 필요하지 않는 경우에는 `SharedFlow` 를 활용할 수도 있습니다.
+이런 상황을 위해서는 실시간으로 활성화(Active) 되어 있는 경우, Android 의 `Lifecycle` 에 반응하는 방식(`repeatOnLifecycle` 또는 `collectAsStateWithLifecycle`) 으로 사용해야만 합니다. 이에 적합한 사례가 `Flow#stateIn()` 으로 `StateFlow` 를 생성하고, UI 에서 Compose 의 경우 `collectAsStateWithLifecycle()` 을 활용하는 것 입니다. 경우에 따라서 이벤트와 같이 현재 상태값이 필요하지 않는 경우에는 `SharedFlow` 를 활용할 수도 있습니다.
 
-`Hot Flow` 는 `Channel`처럼 `collect()` 와 같은 최종 연산이 없어도 활성화 되어 있습니다. 따라서, 언제든지 값이 방출(emit) 되면 replyCache 만큼 최신의 데이터를 가지고 있다가 구독자가 수집(collect)하는 시점에 데이터를 소비할 수 있습니다. 반면에, `Channel` 이 capacity 의 타입에 따라 공간이 가득 찼을 때 onBufferOverFlow 전략으로 관리되는 것과 달리 구독을 시작한 뒤로 준비하는 기간 동안 받지 못한 데이터를 extraBufferCapacity 만큼 오버플로우 전략에 따라 관리하면서 들고 있을 수 있습니다.(물론 StateFlow 와 SharedFlow 는 차이가 있습니다.) 또한, `생산자:소비자` 구조로 동작하는 `Channel` 과 달리 `Flow` 의 특성을 갖는 `Hot Flow` 는 `발행자:구독자` 간의 관계를 갖는 다는 차이점이 존재합니다.
+`Hot Flow` 는 `Channel`처럼 `collect()` 와 같은 최종 연산이 없어도 활성화 되어 있습니다. 따라서, 언제든지 값이 방출(emit) 되면 replyCache 만큼 최신의 데이터를 가지고 있다가 구독자가 수집(collect)하는 시점에 데이터를 소비할 수 있습니다. 
+
+반면에, `Channel` 이 capacity 의 타입에 따라 공간이 가득 찼을 때 `onBufferOverFlow` 전략으로 관리되는 것과 달리 구독을 시작한 뒤로 준비하는 기간 동안 받지 못한 데이터를 `extraBufferCapacity` 만큼 오버플로우 전략에 따라 관리하면서 들고 있을 수 있습니다.(물론 StateFlow 와 SharedFlow 에 차이가 존재합니다.) 또한, `생산자 : 소비자` 구조로 동작하는 `Channel` 과 달리 `Flow` 의 특성을 갖는 `Hot Flow` 는 `발행자 : 구독자` 간의 관계를 갖는 다는 차이점이 존재합니다.
