@@ -1,7 +1,7 @@
 ---
-title: "[Projects] Primitive types 와 boxing type"
+title: "[Kotlin] Primitive types 와 boxing type"
 categories:
-- Projects
+- Kotlin
 tags:
 - Study
 
@@ -69,7 +69,7 @@ launch {
 
 처음 의도는 `VAD` 가 요구하는 입력이 512 개 만큼의 float 배열 이었기 때문에, 전처리와 추론을 분리하고자 하는 목적으로 두  작업을 두개의 코루틴으로 병렬 실행하도록 구현했었습니다. 하지만 전처리 로직을 분리하고 테스트 가능성을 확보하는 것 까지는 좋았으나, 두개의 코루틴으로 굳이 병렬 실행하여 얻는 이점이 하나도 없었습니다.
 
-어차피 두번째 코루틴에서는 `VAD` 로 분할된 샘플을 입력하고 polling 으로 확인하며, `FixedChunkBuffer` 에서도 내부적으로 `read()` 와 `write()` 에 대해 공유 자원에 접근하기 때문에 `mutex` 로 순차 접근이 일어나게 됩니다. 그러므로 사실상 병렬 실행이 아닌 순차 실행이 되고, 불 필요한 코드를 작성했을 뿐 이었습니다.
+어차피 두번째 코루틴에서는 `VAD` 로 분할된 샘플을 입력하고 polling 으로 확인하며, `FixedChunkBuffer` 에서도 내부적으로 `read()` 와 `write()` 함수로 공유 자원에 동시에 접근하기 때문에 `mutex` 로 동기화 해야 합니다. 그러므로 사실상 병렬 실행이 아닌 순차 실행이 되고, 불 필요한 코드를 작성했을 뿐 이었습니다.
 
 ```kotlin
 
@@ -116,17 +116,19 @@ private class FixedChunkBuffer(private val chunkSize: Int = 512) {
 
 ## FloatArray vs Array<Float>
 
-`FloatArray` 와 `Array<Float>` 의 차이는 사실 이전부터 알고 있었습니다만, 후술하겠지만 정확하게 이것이 Aideo 처럼 대용량 메모리를 할당하는 과정에서 이렇게 큰 문제가 될지는 몰랐습니다. 먼저 이둘의 차이에 대해 짚고 넘어가겠습니다.
+`FloatArray` 와 `Array<Float>` 의 차이는 사실 이전부터 알고 있었습니다만, 후술하겠지만 정확하게 이것이 Aideo 처럼 대용량 메모리를 할당하는 과정에서 이렇게 큰 문제가 될지는 몰랐습니다. 먼저, 이 둘의 차이에 대해 짚고 넘어가겠습니다.
 
-코틀린은 자바 코드의 사용성 관점에서 발생하는 여러 문제들을 개선하기 위해 고안된 언어입니다. 가장 대표적인게 null-safety 이죠. 그래서 자바 기반 코드와의 상호운용성을 지원하기 때문에 자바 코드를 프로젝트 내에 함께 사용할 수도 있고, 자바 기반의 라이브러리를 이용할 수도 있습니다. 이것이 궁극적으로 java 와 같이 bytecode 로 컴파일되고, jvm 위에서 동작하기 때문에 가능한 것이죠. 따라서, 자바를 어느정도 알아야 하는데요. 
+코틀린은 자바 코드의 사용성 관점에서 발생하는 여러 문제들을 개선하기 위해 고안된 언어입니다. 가장 대표적인게 null-safety 이죠. 그래서 자바 기반 코드와의 상호운용성을 지원하기 때문에 자바 코드를 프로젝트 내에 함께 사용할 수도 있고, 자바 기반의 라이브러리를 이용할 수도 있습니다. 이것이 궁극적으로 java 와 같이 bytecode 로 컴파일되고, jvm 위에서 동작하기 때문에 가능한 것이죠. 따라서, 자바를 어느정도 알고 있어야 합니다. 
 
 자바에서는 primitive types 와 이것들에 대한 boxing type 을 지원합니다. 구체적으로 int 타입과 Integer 라는 타입이 존재합니다. int 와 같은 primitive types 들은 스택 혹은 힙 공간에 생성될 수 있지만, Integer 는 int 의 boxing 타입으로써 힙 공간에만 할당되는 객체 입니다. 이는 내부적으로 int 에 해당하는 4바이트 만큼의 정수값 외에도 여러 메타데이터를 포함하게 됩니다. 구체적으로 클래스 정보를 유지하기 위한 포인터와 GC age counter, monitor 와 같은 클래스로써 필요한 정보들이 포함됩니다. 그래서 primitive types 보다 더 큰 메모리 공간을 점유할 수 밖에 없습니다.(일반적으로 primitive types 보다 12 바이트 정도 더 크다고 합니다.)
 
-일반적인 사용 사례에서는 12바이트 정도의 차이가 크지 않기 때문에 문제가 두드러지지 않지만, Aideo 와 같이 수백만개의 float 값이 필요한 경우에는 이것이 성능과 메모리 부담에 큰 문제를 주게 됩니다.
+일반적인 사용 사례에서는 12바이트 정도의 차이가 크지 않기 때문에 문제가 두드러지지 않지만, Aideo 와 같이 수백만개의 float 값이 필요한 경우에는 이것이 성능과 메모리 부담에 큰 문제를 줄 수 있었습니다. 더 큰 메모리 공간을 빈번하게 할당 및 소멸을 야기하는 경우, Full-GC 동작 빈도수가 증가하고 이것이 Stop-The-World(GC 동작 스레드를 제외한 모든 실행을 멈춤) 를 반복적으로 일으키면서 성능에 영향을 줄 수 밖에 없었습니다.
 
-그렇다면 왜 boxing 타입을 사용해야 할까요? boxing 타입을 사용해야 하는 이유는 이미 앞선 [Generic 포스팅](https://jowunnal.github.io/kotlin/generic1/) 에서도 언급한 바와 같이 제네릭은 런타임에 메모리 효율성을 위해서 타입 파라미터에 대한 정보를 소거하게 됩니다. 소거된 정보는 `Object` 타입으로 관리되기 때문에 반드시 객체가 되어야 해서 primitive types 를 제네릭의 타입 파라미터로 사용할 수 없습니다.
+그렇다면 primitive types 만 사용하면 될 것 같은데, 굳이 왜 boxing 타입을 사용해야 할까요? boxing 타입을 사용해야 하는 이유는 이미 앞선 [Generic 포스팅](https://jowunnal.github.io/kotlin/generic1/) 에서도 언급한 바와 같이 제네릭은 런타임에 메모리 효율성을 위해서 타입 파라미터에 대한 정보를 소거하게 됩니다. 소거된 정보는 `Object` 타입으로 관리되기 때문에 반드시 객체가 되어야 해서 primitive types 를 제네릭의 타입 파라미터로 사용할 수 없습니다.
 
-Kotlin 에서도 마찬가지입니다. 그래서 [공식문서](https://kotlinlang.org/docs/arrays.html#primitive-type-arrays) 에서는 Array<Float> 대신 primitive types 에 대한 배열인 IntArray, FloatArray 와 같은 Arrays 를 별도로 지원하며, 성능이 중요한 경우 이를 이용하는 것을 권장하고 있습니다.
+Kotlin 에서도 마찬가지입니다. Kotlin 은 기본적으로 Int, Float 과 같은 primitive types 를 지원하지만 java 에서 지원하지 않는 Int?, Float? 과 같은 nullable 타입이나 제네릭의 타입 파라미터로 사용되는 Array<Int>, Array<Float> 의 경우 모두 Boxing type 으로 변환됩니다. 
+
+그래서 [공식문서](https://kotlinlang.org/docs/arrays.html#primitive-type-arrays) 에서는 Array<Float> 대신 primitive types 에 대한 배열인 IntArray, FloatArray 와 같은 Arrays 를 별도로 지원하며, 성능이 중요한 경우 이를 이용하는 것을 권장하고 있습니다.
 
 # 해결
 
@@ -205,12 +207,12 @@ class ChunkedAudioProcessor(
 
 위의 코드 개선이 얼마나 효과가 있었는지 Profiler 를 이용하여 비교해 보았습니다. 결과는 매우 충격적이었습니다.
 
-![개선전](/assets/floatArray_개선전.png)
+![개선전](/assets/floatArray_pre.png)
 
 개선 전에는 추론에 걸린 시간이 약 4분30초가 소요됬으며, GC 가 26회, 전체 객체 할당이 670만개 였습니다.
 
-![개선후](/assets/floatArray_개선후.png)
+![개선후](/assets/floatArray_post.png)
 
 하지만, 개선 후에는 추론에 걸린 시간이 약 1분15초가 소요됬으며, GC 는 14회, 전체 객체 할당이 53만개 였습니다. 단순히 Profiler 로 Memory allocate 만 측정하여 비교했을 때도 큰 차이를 보였습니다. 또한, native memory 공간의 점유율이 개선 전은 700만, 개선 후는 약70만으로 10배 정도의 차이가 났는데, 기존의 `FixedChunkBuffer` 클래스에서 참조되는 Float 값들이 `SpeechRecognition` 의 병목 현상으로 인해 지속적으로 쌓여 나가면서 Peek 시점에 큰 메모리 점유를 할 수 밖에 없었고, 이로 인해 메모리에 큰 부담을 줬었습니다.
 
-리펙토링 과정에서 항상 코드를 작성하는 과정에 깊이 고민해야겠다고 느꼈습니다...
+분명히 Boxing type 과 primitive types 에 대해 알고는 있었지만, 이것을 활용하는 시점에 인지하지 못하는 실수를 해버렸고, 결과적으로 퍼포먼스에 큰 영향을 주게 되었습니다. 앞으로 항상 코드를 작성하는 과정에 깊이 고민해야겠다고 느꼈습니다...
